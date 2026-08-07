@@ -1,0 +1,129 @@
+/* Loot Shelf — merchant shelf window. Leans on Foundry's own window chrome and CSS
+   variables so it follows core light/dark theming; the fallbacks are core's classic
+   parchment palette values. */
+
+.lootshelf-shelf .lootshelf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 8px;
+}
+
+.lootshelf-shelf .lootshelf-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.lootshelf-shelf .lootshelf-header .portrait {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border: 1px solid var(--color-border, #7a7971);
+  border-radius: 4px;
+  flex: none;
+}
+
+.lootshelf-shelf .lootshelf-header h3 {
+  margin: 0;
+  border: none;
+}
+
+.lootshelf-shelf .hint {
+  margin: 0;
+  font-size: var(--font-size-12, 12px);
+  color: var(--color-text-secondary, #7a7971);
+}
+
+.lootshelf-shelf .lootshelf-stock {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border, #7a7971);
+}
+
+.lootshelf-shelf .stock-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border-light-2, rgba(120, 120, 120, 0.25));
+}
+
+.lootshelf-shelf .stock-row .icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border: none;
+  flex: none;
+}
+
+.lootshelf-shelf .stock-row .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lootshelf-shelf .stock-row .qty {
+  flex: none;
+  opacity: 0.75;
+  font-size: var(--font-size-12, 12px);
+}
+
+.lootshelf-shelf .stock-row .price {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lootshelf-shelf .stock-row .buy-qty {
+  flex: none;
+  width: 44px;
+  text-align: center;
+}
+
+.lootshelf-shelf .stock-row button.buy {
+  flex: none;
+  width: auto;
+  padding: 0 10px;
+  line-height: 24px;
+}
+
+.lootshelf-shelf .stock-row .control {
+  flex: none;
+}
+
+.lootshelf-shelf .stock-row.is-hidden {
+  opacity: 0.45;
+}
+
+.lootshelf-shelf .empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--color-text-secondary, #7a7971);
+}
+
+.lootshelf-shelf .lootshelf-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+
+.lootshelf-shelf .purse {
+  margin: 0;
+}
+
+.lootshelf-shelf .lootshelf-sellzone {
+  border: 2px dashed var(--color-border, #7a7971);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  color: var(--color-text-secondary, #7a7971);
+}

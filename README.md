@@ -1,7 +1,8 @@
 # Loot Shelf
 
-> **Status: pre-code.** Design locked, nothing implemented yet. See [design.md](design.md)
-> for the binding scope and architecture.
+> **Status: v0.1.0, unreleased.** Core is implemented — transfer kernel, loot containers,
+> merchant shelf — but not yet play-tested in a live world or released. See
+> [design.md](design.md) for the binding scope and architecture.
 
 A lean, 5e-only loot & merchant module for Foundry VTT. Two features, nothing else:
 
@@ -18,6 +19,23 @@ GM proxy. No bundled UI framework, no multi-system abstraction, no dependencies.
 Sibling of [Party Stash](https://github.com/Txpple/fvtt-mod-partystash) — Party Stash owns
 shared party inventory; Loot Shelf owns loot on the ground and goods for sale. There is
 deliberately no trading, no vaults, and no multi-currency machinery here.
+
+## GM quickstart
+
+- Right-click an actor in the sidebar → **Loot Shelf: Configure** to flag it as a
+  merchant and/or loot container (art states, price modifiers, infinite stock).
+- Stock either one by dragging items onto its normal sheet — attunement and equipped
+  state are cleared on the way in. On a merchant, equipped or hidden (eye icon on the
+  shelf) items never show to players.
+- Players double-click a merchant token to browse and buy, and drag their own items into
+  the shelf window to sell. Buys and sells run GM-side over a plain-socket proxy, so a
+  GM client must be connected.
+- Containers need no proxy: grant players ownership of the chest actor and they loot
+  through the system's own sheet — drags out are *moves*, and the token art swaps
+  closed/open/empty on its own.
+- Everything is also scriptable: `game.modules.get("fvtt-mod-lootshelf").api` exposes
+  `createMerchant`, `createLootContainer`, `setMerchant`, `setContainer`, `openShelf`,
+  `configure`, `purchase`, `sell`, and `transferItem`.
 
 ## Compatibility
 
