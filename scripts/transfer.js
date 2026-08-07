@@ -380,7 +380,13 @@ Hooks.once("ready", () => {
 /*  Stocking helper (shared by the create-* API)      */
 /* -------------------------------------------------- */
 
-/** Embed a list of items (uuids or plain item data) onto an actor. */
+/**
+ * Embed a list of items (uuids or plain item data) onto an actor. Each entry is stocked
+ * as an independent top-level item: `system.container` is detached, because compendium
+ * items routinely carry stale container refs from their source pack (the SRD's Rations
+ * point at a Backpack that won't exist on the target), which would make them invisible
+ * to the shelf and unsellable.
+ */
 export async function stockItems(actor, items = []) {
   const docs = [];
   for (const entry of items) {
@@ -392,7 +398,10 @@ export async function stockItems(actor, items = []) {
       docs.push(foundry.utils.deepClone(entry));
     }
   }
-  for (const d of docs) delete d._id;
+  for (const d of docs) {
+    delete d._id;
+    if (d.system && "container" in d.system) d.system.container = null;
+  }
   if (docs.length) await actor.createEmbeddedDocuments("Item", docs);
   return docs.length;
 }

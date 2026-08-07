@@ -46,18 +46,34 @@ function desiredArt(actor, cfg) {
   return cfg.imgOpen || cfg.imgClosed || null;
 }
 
-/** Swap every dependent token to the current art state. GM-elect client only. */
+/**
+ * Swap every dependent token to the current art state. GM-elect client only: art writes
+ * need a SINGLE writer just like the purchase proxy — two GM clients with different
+ * hook-processing lag will fight each other with different views of the container's
+ * emptiness (verified live: a backgrounded GM tab re-wrote stale art over fresh art).
+ * If the elected GM's tab is suspended, swaps simply lag until it wakes or reloads; the
+ * flag data is always authoritative, so every fresh load converges to the right art.
+ */
 export async function applyArt(actor) {
   if (game.users.activeGM !== game.user) return;
   const cfg = actor.getFlag(MODULE_ID, "container");
   if (!cfg?.enabled) return;
   const img = desiredArt(actor, cfg);
   if (!img) return;
+  // getDependentTokens also tracks EPHEMERAL TokenDocuments (id: null — byproducts of
+  // getTokenDocument and friends); updating one throws synchronously and would kill the
+  // loop before any real token got its swap. Only persisted, scene-embedded tokens count.
   const tokens = actor.isToken ? [actor.token] : actor.getDependentTokens();
   for (const token of tokens) {
-    if (!token || token.texture?.src === img) continue;
-    await token.update({ "texture.src": img })
-      .catch(err => console.error(`${MODULE_ID} | token art swap failed`, err));
+    if (!token?.id || !token.parent || token.texture?.src === img) continue;
+    try {
+      // animate: false matters — the token update animation restores a STALE texture
+      // when it completes (core #12777 / #12118 family), so an animated swap renders
+      // once and then sticks forever. Skipping animation sidesteps the whole bug class.
+      await token.update({ "texture.src": img }, { animate: false });
+    } catch (err) {
+      console.error(`${MODULE_ID} | token art swap failed`, err);
+    }
   }
 }
 
@@ -75,6 +91,22 @@ Hooks.on("updateActor", actor => maybeRefreshArt(actor));
 Hooks.once("ready", () => {
   if (game.users.activeGM !== game.user) return;
   for (const actor of game.actors) if (isContainer(actor)) applyArt(actor);
+});
+
+// Foundry v14 core bug (#12118): a token's texture.src change only RENDERS the first
+// time — later changes update the document but leave stale prepared data until a canvas
+// redraw. Scoped workaround: when a container token's texture changes, every client
+// re-derives the document and redraws the placeable. Cheap, idempotent, and harmless
+// once core fixes it.
+Hooks.on("updateToken", (doc, changes) => {
+  try {
+    if (!foundry.utils.hasProperty(changes, "texture.src")) return;
+    if (!isContainer(doc.actor)) return;
+    doc.reset();
+    doc.object?.renderFlags.set({ redraw: true });
+  } catch (err) {
+    console.error(`${MODULE_ID} | container token redraw failed`, err);
+  }
 });
 
 // Fresh tokens start on the right art (runs on the placing client, which has perms).
