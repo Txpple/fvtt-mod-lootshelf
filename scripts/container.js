@@ -242,7 +242,13 @@ export async function createLootContainer({
       name,
       actorLink: true,
       disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
-      texture: { src: art }
+      texture: { src: art },
+      // The token was always NAMED after the item; what it lacked was a visible nameplate,
+      // since Foundry defaults displayName to NONE. A pile of loot that cannot be
+      // identified without opening it is a guessing game — especially once several are on
+      // the floor at once, all wearing their own item art. HOVER rather than ALWAYS so a
+      // scene strewn with dropped items does not turn into a wall of text.
+      displayName: CONST.TOKEN_DISPLAY_MODES.HOVER
     },
     flags: {
       core: { sheetClass: CONTAINER_SHEET_ID },
