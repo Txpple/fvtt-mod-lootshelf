@@ -1,9 +1,5 @@
 # Loot Shelf
 
-> **Status: v1.0.0.** Every flow below has been play-tested end to end in a live world
-> (Foundry 14.365, dnd5e 5.3.3) from a real player client, not just a GM session. See
-> [design.md](design.md) for the binding scope and architecture.
-
 A lean, 5e-only loot & merchant module for Foundry VTT. Two features, nothing else:
 
 - **Placeable loot containers** — a chest is an actor on the scene. Players open it and
