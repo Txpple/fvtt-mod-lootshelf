@@ -70,6 +70,14 @@ export function formatCopper(total) {
   return parts.filter(([n]) => n > 0).map(([n, d]) => `${n} ${d}`).join(" ");
 }
 
+/**
+ * Human label for the CONTENTS of a purse. `formatCopper` reads zero as "free", which is
+ * right for a price tag and nonsense for a wallet — "only has free" is not a sentence.
+ */
+export function formatPurse(total) {
+  return Math.floor(total) > 0 ? formatCopper(total) : "no coin";
+}
+
 /** A new currency object with `amount` copper added, canonically as gp/sp/cp. */
 export function addCopper(currency, amount) {
   const c = coins(currency);
@@ -290,12 +298,18 @@ const OPS = {
     const sellMod = Number.isFinite(+cfg.sellModifier) ? +cfg.sellModifier : 0.5;
     const gain = Math.floor(priceInCopper(item) * sellMod) * qty;
 
-    // A shop's own purse is deliberately NOT a gate (owner's call): a sale never fails for
-    // want of merchant coin. Deduct when the shopkeeper can cover it so finite shops still
-    // drain, and simply skip the deduction when they can't rather than refusing the trade
-    // or pushing their purse negative. The seller is paid either way.
+    // A finite shop pays out of its own purse and cannot buy what it can't afford. The
+    // shelf caps the offered quantity by what the shopkeeper is holding, so reaching this
+    // error normally means the purse moved between the offer and the confirmation.
     let merchantAfter = null;
-    if (!cfg.infiniteStock && gain > 0) merchantAfter = planDeduction(merchant.system.currency, gain);
+    if (!cfg.infiniteStock && gain > 0) {
+      merchantAfter = planDeduction(merchant.system.currency, gain);
+      if (!merchantAfter) {
+        throw new Error(`${merchant.name} has `
+          + `${formatPurse(totalCopper(merchant.system.currency))} and can't pay `
+          + `${formatCopper(gain)}.`);
+      }
+    }
 
     const name = item.name;
     await grantItem(merchant, item, qty);

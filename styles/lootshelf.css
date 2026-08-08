@@ -150,6 +150,42 @@
   opacity: 0.4;
 }
 
+/* Buy/sell confirmation dialogs.
+
+   Foundry's form-group puts the label in a narrow flexible column meant for a settings
+   sheet; in a ~380px dialog a label like "Quantity (up to 3)" wrapped across three lines
+   beside its input. Give the label its own full-width row and let the field sit under it,
+   which reads correctly at any dialog width instead of depending on the label being short. */
+.application.dialog.lootshelf-dialog .window-content {
+  min-width: 320px;
+}
+
+.application.dialog.lootshelf-dialog .form-group {
+  display: block;
+}
+
+.application.dialog.lootshelf-dialog .form-group > label {
+  display: block;
+  width: auto;
+  flex: none;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.application.dialog.lootshelf-dialog .form-group .form-fields {
+  width: 100%;
+}
+
+.application.dialog.lootshelf-dialog .hint {
+  margin: 4px 0 0;
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.7;
+}
+
+.application.dialog.lootshelf-dialog p {
+  margin: 0 0 8px;
+}
+
 /* The one line under the shop name: purse, or pricing for the GM. */
 .dnd5e2.sheet.actor.group.lootshelf-sheet .lootshelf-subtitle {
   font-size: var(--font-size-12, 12px);

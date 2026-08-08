@@ -24,7 +24,7 @@
  */
 
 import {
-  MODULE_ID, isPhysical, priceInCopper, formatCopper, totalCopper, gmRequest
+  MODULE_ID, isPhysical, priceInCopper, formatCopper, formatPurse, totalCopper, gmRequest
 } from "./transfer.js";
 
 export { MERCHANT_SHEET_ID } from "./sheets.js";
@@ -205,7 +205,7 @@ Hooks.once("init", () => {
         if (this.config.infiniteStock) bits.push("infinite stock");
       } else {
         bits.push(buyer
-          ? `${buyer.name}'s purse: ${formatCopper(totalCopper(buyer.system.currency))}`
+          ? `${buyer.name}'s purse: ${formatPurse(totalCopper(buyer.system.currency))}`
           : "Select your token or assign a character to buy.");
         bits.push(`sells back at ${Math.round(this.sellModifier * 100)}%`);
       }
@@ -286,10 +286,12 @@ Hooks.once("init", () => {
       const max = infinite ? 99 : Math.max(1, Math.floor(item.system.quantity ?? 1));
       const esc = Handlebars.escapeExpression;
       const qtyField = max > 1
-        ? `<div class="form-group"><label>Quantity (up to ${max})</label>`
-          + `<input type="number" name="qty" value="1" min="1" max="${max}" autofocus></div>`
+        ? `<div class="form-group"><label>Quantity</label><div class="form-fields">`
+          + `<input type="number" name="qty" value="1" min="1" max="${max}" autofocus>`
+          + `</div><p class="hint">Up to ${max}.</p></div>`
         : "";
       const result = await foundry.applications.api.DialogV2.wait({
+        classes: ["lootshelf-dialog"],
         window: { title: `Buy from ${this.actor.name}` },
         content: `<p><strong>${esc(item.name)}</strong> — ${formatCopper(unit)} each.</p>`
           + `<p>${esc(buyer.name)} carries ${formatCopper(totalCopper(buyer.system.currency))}.</p>`
@@ -341,16 +343,33 @@ Hooks.once("init", () => {
         return void ui.notifications.warn("Loot Shelf: only physical goods can be sold.");
       }
       const unit = Math.floor(priceInCopper(item) * this.sellModifier);
-      const max = Math.max(1, Math.floor(item.system.quantity ?? 1));
+      const carried = Math.max(1, Math.floor(item.system.quantity ?? 1));
+      // A finite shop can only buy what it can pay for. Work that out here so the shopper
+      // is told up front instead of being refused after committing to the sale.
+      const purse = totalCopper(this.actor.system.currency);
+      const infinite = !!this.config.infiniteStock;
+      const affordable = (infinite || unit <= 0) ? carried : Math.floor(purse / unit);
+      if (affordable < 1) {
+        return void ui.notifications.warn(
+          `Loot Shelf: ${this.actor.name} has ${formatPurse(purse)} and can't afford `
+          + `${item.name} at ${formatCopper(unit)}.`);
+      }
+      const max = Math.min(carried, affordable);
       const esc = Handlebars.escapeExpression;
+      const limitNote = max < carried
+        ? `<p class="hint">Can only afford ${max} of your ${carried} `
+          + `(purse: ${formatCopper(purse)}).</p>`
+        : "";
       const qtyField = max > 1
-        ? `<div class="form-group"><label>Quantity (up to ${max})</label>`
-          + `<input type="number" name="qty" value="1" min="1" max="${max}" autofocus></div>`
+        ? `<div class="form-group"><label>Quantity</label><div class="form-fields">`
+          + `<input type="number" name="qty" value="1" min="1" max="${max}" autofocus>`
+          + `</div><p class="hint">Up to ${max}.</p></div>`
         : "";
       const result = await foundry.applications.api.DialogV2.wait({
+        classes: ["lootshelf-dialog"],
         window: { title: `Sell to ${this.actor.name}` },
         content: `<p>${esc(this.actor.name)} offers <strong>${formatCopper(unit)}</strong>`
-          + ` each for ${esc(item.name)}.</p>${qtyField}`,
+          + ` each for ${esc(item.name)}.</p>${limitNote}${qtyField}`,
         buttons: [
           {
             action: "sell", label: "Sell", icon: "fa-solid fa-coins", default: true,
