@@ -1,20 +1,20 @@
-/* Loot Shelf — container sheet.
+/* Loot Shelf — container and merchant sheets.
 
-   The container sheet renders dnd5e's own group-sheet inventory, so it carries the
+   Both render dnd5e's own group-sheet inventory, so it carries the
    `group` class and inherits that stylesheet wholesale. Only two things about a chest
    differ from a party: there is no members rail, and the banner-sized header is wasted
    space when the window exists to show loot. Everything below is those two deltas —
    no restyling of the item table, which is the system's to own. */
 
 /* No party members, so collapse the two-column grid (196px rail + contents). */
-.dnd5e2.sheet.actor.group.lootshelf-container [data-application-part=inventory] {
+.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part=inventory] {
   grid-template-columns: auto;
 }
 
 /* dnd5e reserves a 36px band at the top of the window content so a sheet's artwork can
    sit under the translucent frame header. The frame header is only 36px tall and ends
    well above where our slim header starts, leaving ~30px of dead space. Reclaim it. */
-.dnd5e2.sheet.actor.group.lootshelf-container .window-content {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .window-content {
   padding-top: 6px;
   padding-bottom: 10px;
 }
@@ -26,7 +26,7 @@
    the scrollbar. `min-height: 0` is what actually lets the list shrink inside the flex
    column instead of pushing the container taller. The part's `scrollable` selector in
    container-sheet.js points at this same list so scroll position survives re-renders. */
-.dnd5e2.sheet.actor.group.lootshelf-container [data-application-part=inventory] .body {
+.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part=inventory] .body {
   overflow: hidden;
   padding-bottom: 0;
   display: flex;
@@ -34,15 +34,15 @@
   min-height: 0;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .inventory-element {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .currency,
-.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .middle {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .inventory-element > .currency,
+.dnd5e2.sheet.actor.group.lootshelf-sheet .inventory-element > .middle {
   flex: none;
 }
 
@@ -52,7 +52,7 @@
    group sheet's 54px, reserved for the floating create button this sheet removes). The
    constant gap lives on .window-content, OUTSIDE the scroller; the 6px here just mirrors
    the list's own top padding. */
-.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .items-list {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .inventory-element > .items-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -63,156 +63,64 @@
    46px name — which is most of the window before any loot shows. A chest only needs to
    say which chest it is, so this is a single ~52px row: small square portrait, name
    beside it, everything below given over to contents. */
-.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .sheet-header {
   align-items: center;
   gap: 10px;
   padding-block: 6px;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header > .left {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .sheet-header > .left {
   flex: 0 0 40px;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header .portrait {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .sheet-header .portrait {
   height: 40px;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header > .right {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .sheet-header > .right {
   justify-content: center;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header .document-name {
+.dnd5e2.sheet.actor.group.lootshelf-sheet .sheet-header .document-name {
   font-size: var(--font-size-20, 20px);
   text-align: start;
   line-height: 1.2;
 }
 
-/* Loot Shelf — merchant shelf window. Leans on Foundry's own window chrome and CSS
-   variables so it follows core light/dark theming; the fallbacks are core's classic
-   parchment palette values. */
+/* Merchant shelf: the shop-specific columns. Everything else about this window is the
+   shared rules above plus dnd5e's own inventory styling. */
 
-.lootshelf-shelf .lootshelf-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-  padding: 8px;
-}
-
-.lootshelf-shelf .lootshelf-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-}
-
-.lootshelf-shelf .lootshelf-header .portrait {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border: 1px solid var(--color-border, #7a7971);
-  border-radius: 4px;
-  flex: none;
-}
-
-.lootshelf-shelf .lootshelf-header h3 {
-  margin: 0;
-  border: none;
-}
-
-.lootshelf-shelf .hint {
-  margin: 0;
-  font-size: var(--font-size-12, 12px);
-  color: var(--color-text-secondary, #7a7971);
-}
-
-.lootshelf-shelf .lootshelf-stock {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex: 1;
-  overflow-y: auto;
-  border-top: 1px solid var(--color-border, #7a7971);
-}
-
-.lootshelf-shelf .stock-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--color-border-light-2, rgba(120, 120, 120, 0.25));
-}
-
-.lootshelf-shelf .stock-row .icon {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  border: none;
-  flex: none;
-}
-
-.lootshelf-shelf .stock-row .name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lootshelf-shelf .stock-row .qty {
-  flex: none;
-  opacity: 0.75;
-  font-size: var(--font-size-12, 12px);
-}
-
-.lootshelf-shelf .stock-row .price {
-  flex: none;
+.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-price {
   font-weight: 600;
   white-space: nowrap;
+  justify-content: flex-end;
 }
 
-.lootshelf-shelf .stock-row .buy-qty {
-  flex: none;
-  width: 44px;
-  text-align: center;
+.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-stock {
+  opacity: 0.8;
 }
 
-.lootshelf-shelf .stock-row button.buy {
-  flex: none;
+.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-buy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   width: auto;
   padding: 0 10px;
-  line-height: 24px;
+  line-height: 26px;
+  white-space: nowrap;
 }
 
-.lootshelf-shelf .stock-row .control {
-  flex: none;
+/* A row the shoppers cannot see, shown to the GM so curation is legible at a glance. */
+.dnd5e2.sheet.actor.group.lootshelf-merchant .items-section li.item:has(.fa-eye-slash) {
+  opacity: 0.5;
 }
 
-.lootshelf-shelf .stock-row.is-hidden {
-  opacity: 0.45;
+.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-locked {
+  opacity: 0.4;
 }
 
-.lootshelf-shelf .empty {
-  padding: 12px;
-  text-align: center;
-  color: var(--color-text-secondary, #7a7971);
-}
-
-.lootshelf-shelf .lootshelf-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: none;
-}
-
-.lootshelf-shelf .purse {
-  margin: 0;
-}
-
-.lootshelf-shelf .lootshelf-sellzone {
-  border: 2px dashed var(--color-border, #7a7971);
-  border-radius: 6px;
-  padding: 10px;
-  text-align: center;
-  color: var(--color-text-secondary, #7a7971);
+/* The one line under the shop name: purse, or pricing for the GM. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet .lootshelf-subtitle {
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.75;
 }

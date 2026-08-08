@@ -26,7 +26,7 @@
  */
 
 import { MODULE_ID, isPhysical, totalCopper, stockItems } from "./transfer.js";
-import { SHEET_CLASS_ID } from "./container-sheet.js";
+import { CONTAINER_SHEET_ID, sheetClassUpdate, sheetUnset } from "./sheets.js";
 
 /* -------------------------------------------------- */
 /*  Flags & state                                     */
@@ -99,8 +99,8 @@ Hooks.once("ready", () => {
   for (const actor of game.actors) {
     if (!isContainer(actor)) continue;
     applyArt(actor);
-    if (actor.getFlag("core", "sheetClass") === undefined) {
-      actor.update(sheetClassUpdate(actor, true))
+    if (sheetUnset(actor)) {
+      actor.update(sheetClassUpdate(actor, actor.flags?.[MODULE_ID] ?? {}))
         .catch(err => console.error(`${MODULE_ID} | container sheet adoption failed`, err));
     }
   }
@@ -280,17 +280,6 @@ Hooks.once("setup", () => {
 /*  Setup API                                         */
 /* -------------------------------------------------- */
 
-/**
- * The `flags.core.sheetClass` update that keeps a container on the Loot Shelf sheet:
- * assign it when the role turns on, and hand the actor back to the system default when
- * it turns off (but never clobber some OTHER custom sheet the GM picked deliberately).
- */
-export function sheetClassUpdate(actor, enabled) {
-  const current = actor.getFlag("core", "sheetClass");
-  if (enabled) return current === SHEET_CLASS_ID ? {} : { "flags.core.sheetClass": SHEET_CLASS_ID };
-  return current === SHEET_CLASS_ID ? { "flags.core.-=sheetClass": null } : {};
-}
-
 /** Flag (or reconfigure) an existing actor as a loot container. */
 export async function setContainer(actor, { enabled = true, imgClosed, imgOpen, imgEmpty, opened } = {}) {
   const cfg = { ...(actor.getFlag(MODULE_ID, "container") ?? {}), enabled };
@@ -298,9 +287,10 @@ export async function setContainer(actor, { enabled = true, imgClosed, imgOpen, 
   if (imgOpen !== undefined) cfg.imgOpen = imgOpen;
   if (imgEmpty !== undefined) cfg.imgEmpty = imgEmpty;
   if (opened !== undefined) cfg.opened = !!opened;
+  const flags = { ...(actor.flags?.[MODULE_ID] ?? {}), container: cfg };
   await actor.update({
     [`flags.${MODULE_ID}.container`]: cfg,
-    ...sheetClassUpdate(actor, enabled)
+    ...sheetClassUpdate(actor, flags)
   });
   return cfg;
 }
@@ -327,7 +317,7 @@ export async function createLootContainer({
       texture: { src: closed }
     },
     flags: {
-      core: { sheetClass: SHEET_CLASS_ID },
+      core: { sheetClass: CONTAINER_SHEET_ID },
       [MODULE_ID]: {
         container: { enabled: true, imgClosed: closed, imgOpen: imgOpen ?? "", imgEmpty: imgEmpty ?? "", opened }
       }

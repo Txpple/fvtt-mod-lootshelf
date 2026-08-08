@@ -8,7 +8,7 @@
  */
 
 import { MODULE_ID } from "./transfer.js";
-import { sheetClassUpdate } from "./container.js";
+import { sheetClassUpdate } from "./sheets.js";
 
 const esc = s => Handlebars.escapeExpression(s ?? "");
 
@@ -79,6 +79,6 @@ export async function configure(actor) {
   const flags = foundry.utils.expandObject(result);
   await actor.update({
     [`flags.${MODULE_ID}`]: flags,
-    ...sheetClassUpdate(actor, !!flags.container?.enabled)
+    ...sheetClassUpdate(actor, flags)
   });
 }

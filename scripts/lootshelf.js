@@ -36,6 +36,7 @@
 
 import { MODULE_ID, gmRequest, priceInCopper, formatCopper } from "./transfer.js";
 import "./container-sheet.js";
+import "./merchant-sheet.js";
 import { setContainer, createLootContainer, isContainer } from "./container.js";
 import { setMerchant, createMerchant, openShelf, isMerchant } from "./merchant.js";
 import { configure } from "./config.js";

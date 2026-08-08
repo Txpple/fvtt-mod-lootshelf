@@ -27,9 +27,10 @@ deliberately no trading, no vaults, and no multi-currency machinery here.
 - Stock either one by dragging items onto its normal sheet — attunement and equipped
   state are cleared on the way in. On a merchant, equipped or hidden (eye icon on the
   shelf) items never show to players.
-- Players double-click a merchant token to browse and buy, and drag their own items into
-  the shelf window to sell. Buys and sells run GM-side over a plain-socket proxy, so a
-  GM client must be connected.
+- Players double-click a merchant token to browse and buy, and drag their own items onto
+  the shelf to sell. The shelf is the merchant's own sheet, opened without granting any
+  ownership, so shop actors never clutter a player's sidebar. Buys and sells run GM-side
+  over a plain-socket proxy, so a GM client must be connected.
 - Containers need no proxy: grant players ownership of the chest actor and they loot
   through a dnd5e-native container sheet (the system's own inventory tab — currency,
   search, sectioned item table) — drags out are *moves*, and the token art swaps

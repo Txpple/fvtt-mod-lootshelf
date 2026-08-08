@@ -61,7 +61,14 @@ Two features. **That's it.**
   raw NPC statblock sheet, which read as legacy Item-Piles-era UX. The rule stands:
   reuse the system's sheet framework and components; never hand-build lookalike item
   lists. The merchant shelf gets the same visual uplift next.
-- **Merchant shelf** — the ONE custom window (ApplicationV2): stock list with prices
+- **Merchant shelf** — *(v0.2 uplift)* no longer a custom window: the shelf is the
+  merchant's own dnd5e sheet, built on the system's inventory with three custom COLUMNS
+  (shelf price, stock, Buy — an eye toggle for the GM), since `InventoryElement.mapColumns`
+  merges unrecognised column descriptors as-is. Shoppers open it without owning the
+  shopkeeper via `viewPermission: NONE`, so merchant actors never appear in a player's
+  sidebar — the constraint that forced the bespoke window in v0.1. The GM's view shows
+  everything, so it is also the stocking view. Original v0.1 sketch, for the record:
+  the ONE custom window (ApplicationV2): stock list with prices
   (global price-modifier flag), buy flow through the transfer kernel, per-item
   hide-from-shelf flag (the shopkeeper's own weapons/armor never leak onto the shelf —
   fixing properly what needed a workaround on Item Piles). Optional v1-minus fallback:

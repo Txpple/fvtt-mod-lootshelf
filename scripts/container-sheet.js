@@ -26,7 +26,7 @@
 
 import { MODULE_ID } from "./transfer.js";
 
-export const SHEET_CLASS_ID = `${MODULE_ID}.LootContainerSheet`;
+export { CONTAINER_SHEET_ID } from "./sheets.js";
 
 Hooks.once("init", () => {
   const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
@@ -40,7 +40,7 @@ Hooks.once("init", () => {
 
   class LootContainerSheet extends Base {
     static DEFAULT_OPTIONS = {
-      classes: ["group", "lootshelf-container"],
+      classes: ["group", "lootshelf-sheet", "lootshelf-container"],
       position: { width: 580, height: 640 },
       // No title-bar icon: dnd5e sheets hide the window title, so an icon just floats
       // alone in the middle of the header bar with nothing to label.

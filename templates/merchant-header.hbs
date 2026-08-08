@@ -1,0 +1,20 @@
+{{!-- Merchant header: portrait, name, and the one line a shopper needs — what's in their
+      purse, or for the GM, the pricing this shop is running. --}}
+<header class="sheet-header">
+
+    <div class="left">
+        <div class="portrait">
+            <img src="{{ document.img }}" alt="{{ document.name }}">
+        </div>
+    </div>
+
+    <div class="right">
+        <div class="top">
+            <div class="document-name">{{ document.name }}</div>
+        </div>
+        {{#if shelf.subtitle}}
+        <div class="lootshelf-subtitle">{{ shelf.subtitle }}</div>
+        {{/if}}
+    </div>
+
+</header>

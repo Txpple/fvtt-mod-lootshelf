@@ -1,0 +1,7 @@
+{{!-- Shelf price: the item's price AFTER the merchant's modifier. The system's own price
+      column reads system.price.value straight off the item and knows nothing about the
+      markup, so it would quote a number the buyer is never charged. --}}
+<div class="item-detail item-price lootshelf-price {{#unless ctx.shelf.priceLabel}}empty{{/unless}}"
+     data-column-id="shelfPrice">
+    {{#if ctx.shelf.priceLabel}}{{ ctx.shelf.priceLabel }}{{/if}}
+</div>
