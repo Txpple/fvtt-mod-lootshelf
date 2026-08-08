@@ -31,7 +31,8 @@ deliberately no trading, no vaults, and no multi-currency machinery here.
   the shelf window to sell. Buys and sells run GM-side over a plain-socket proxy, so a
   GM client must be connected.
 - Containers need no proxy: grant players ownership of the chest actor and they loot
-  through the system's own sheet — drags out are *moves*, and the token art swaps
+  through a dnd5e-native container sheet (the system's own inventory tab — currency,
+  search, sectioned item table) — drags out are *moves*, and the token art swaps
   closed/open/empty on its own.
 - Everything is also scriptable: `game.modules.get("fvtt-mod-lootshelf").api` exposes
   `createMerchant`, `createLootContainer`, `setMerchant`, `setContainer`, `openShelf`,

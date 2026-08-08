@@ -53,8 +53,14 @@ Two features. **That's it.**
   quantity-merge into existing stacks, coin deduction/award, attunement/equipped cleared on
   the way. A few hundred lines; everything else calls through it.
 - **Loot container** — an actor + module flags: art states (closed/open/empty) swapped on
-  the token, ownership-gated open, contents browsed via native sheets; dnd5e container
-  items handle nesting/capacity natively.
+  the token, ownership-gated open; dnd5e container items handle nesting/capacity natively.
+  *(v0.2 uplift, owner-decided 2026-08-07):* contents are browsed through a **container
+  sheet** — a subclass of dnd5e's `BaseActorSheet` whose parts are a minimal header plus
+  the system's own inventory tab (currency row, search/filter controls, sectioned item
+  table — the group-sheet look), assigned via `flags.core.sheetClass`. This replaces the
+  raw NPC statblock sheet, which read as legacy Item-Piles-era UX. The rule stands:
+  reuse the system's sheet framework and components; never hand-build lookalike item
+  lists. The merchant shelf gets the same visual uplift next.
 - **Merchant shelf** — the ONE custom window (ApplicationV2): stock list with prices
   (global price-modifier flag), buy flow through the transfer kernel, per-item
   hide-from-shelf flag (the shopkeeper's own weapons/armor never leak onto the shelf —

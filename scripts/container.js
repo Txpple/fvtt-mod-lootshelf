@@ -1,10 +1,12 @@
 /**
  * Loot Shelf — placeable loot containers.
  *
- * A container is any actor with `flags.fvtt-mod-lootshelf.container.enabled`. There is no
- * custom window: the GM grants players ownership, they double-click the token, and the
- * system's own sheet and drop pipeline handle the looting. The module adds exactly three
- * things around that native flow:
+ * A container is any actor with `flags.fvtt-mod-lootshelf.container.enabled`. The GM
+ * grants players ownership, they double-click the token, and a dnd5e-native sheet and
+ * the system's own drop pipeline handle the looting. Since v0.2 that sheet is the
+ * container sheet (container-sheet.js) — a BaseActorSheet subclass showing only the
+ * system's inventory tab, assigned per-actor via `flags.core.sheetClass`. Around that
+ * native flow the module adds exactly three things:
  *
  *   1. ART STATES — closed / open / empty images swapped on the container's tokens. The
  *      `opened` flag flips the first time a player renders the sheet; "empty" means no
@@ -24,6 +26,7 @@
  */
 
 import { MODULE_ID, isPhysical, totalCopper, stockItems } from "./transfer.js";
+import { SHEET_CLASS_ID } from "./container-sheet.js";
 
 /* -------------------------------------------------- */
 /*  Flags & state                                     */
@@ -87,10 +90,20 @@ Hooks.on("updateItem", item => maybeRefreshArt(item.parent));
 Hooks.on("deleteItem", item => maybeRefreshArt(item.parent));
 Hooks.on("updateActor", actor => maybeRefreshArt(actor));
 
-// One sync pass at startup so world edits made while the GM was away still land.
+// One sync pass at startup so world edits made while the GM was away still land. The
+// same pass adopts pre-v0.2 containers onto the container sheet — but only ones whose
+// core sheet flag is entirely unset, so a sheet the GM explicitly picked (including an
+// explicit reset to the system default, which stores "") is never overridden.
 Hooks.once("ready", () => {
   if (game.users.activeGM !== game.user) return;
-  for (const actor of game.actors) if (isContainer(actor)) applyArt(actor);
+  for (const actor of game.actors) {
+    if (!isContainer(actor)) continue;
+    applyArt(actor);
+    if (actor.getFlag("core", "sheetClass") === undefined) {
+      actor.update(sheetClassUpdate(actor, true))
+        .catch(err => console.error(`${MODULE_ID} | container sheet adoption failed`, err));
+    }
+  }
 });
 
 // Foundry v14 core bug (#12118): a token's texture.src change only RENDERS the first
@@ -204,6 +217,17 @@ Hooks.once("setup", () => {
 /*  Setup API                                         */
 /* -------------------------------------------------- */
 
+/**
+ * The `flags.core.sheetClass` update that keeps a container on the Loot Shelf sheet:
+ * assign it when the role turns on, and hand the actor back to the system default when
+ * it turns off (but never clobber some OTHER custom sheet the GM picked deliberately).
+ */
+export function sheetClassUpdate(actor, enabled) {
+  const current = actor.getFlag("core", "sheetClass");
+  if (enabled) return current === SHEET_CLASS_ID ? {} : { "flags.core.sheetClass": SHEET_CLASS_ID };
+  return current === SHEET_CLASS_ID ? { "flags.core.-=sheetClass": null } : {};
+}
+
 /** Flag (or reconfigure) an existing actor as a loot container. */
 export async function setContainer(actor, { enabled = true, imgClosed, imgOpen, imgEmpty, opened } = {}) {
   const cfg = { ...(actor.getFlag(MODULE_ID, "container") ?? {}), enabled };
@@ -211,7 +235,10 @@ export async function setContainer(actor, { enabled = true, imgClosed, imgOpen, 
   if (imgOpen !== undefined) cfg.imgOpen = imgOpen;
   if (imgEmpty !== undefined) cfg.imgEmpty = imgEmpty;
   if (opened !== undefined) cfg.opened = !!opened;
-  await actor.update({ [`flags.${MODULE_ID}.container`]: cfg });
+  await actor.update({
+    [`flags.${MODULE_ID}.container`]: cfg,
+    ...sheetClassUpdate(actor, enabled)
+  });
   return cfg;
 }
 
@@ -237,6 +264,7 @@ export async function createLootContainer({
       texture: { src: closed }
     },
     flags: {
+      core: { sheetClass: SHEET_CLASS_ID },
       [MODULE_ID]: {
         container: { enabled: true, imgClosed: closed, imgOpen: imgOpen ?? "", imgEmpty: imgEmpty ?? "", opened }
       }

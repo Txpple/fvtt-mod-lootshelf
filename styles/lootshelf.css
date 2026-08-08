@@ -1,3 +1,92 @@
+/* Loot Shelf — container sheet.
+
+   The container sheet renders dnd5e's own group-sheet inventory, so it carries the
+   `group` class and inherits that stylesheet wholesale. Only two things about a chest
+   differ from a party: there is no members rail, and the banner-sized header is wasted
+   space when the window exists to show loot. Everything below is those two deltas —
+   no restyling of the item table, which is the system's to own. */
+
+/* No party members, so collapse the two-column grid (196px rail + contents). */
+.dnd5e2.sheet.actor.group.lootshelf-container [data-application-part=inventory] {
+  grid-template-columns: auto;
+}
+
+/* dnd5e reserves a 36px band at the top of the window content so a sheet's artwork can
+   sit under the translucent frame header. The frame header is only 36px tall and ends
+   well above where our slim header starts, leaving ~30px of dead space. Reclaim it. */
+.dnd5e2.sheet.actor.group.lootshelf-container .window-content {
+  padding-top: 6px;
+  padding-bottom: 10px;
+}
+
+/* Pin the currency row and the search/filter bar, and scroll only the item list. On the
+   system's sheets the whole inventory element scrolls, so the controls you use to find
+   something leave the screen the moment you go looking. Restructure the element as a
+   flex column: header rows hold their size, the list takes the remaining height and owns
+   the scrollbar. `min-height: 0` is what actually lets the list shrink inside the flex
+   column instead of pushing the container taller. The part's `scrollable` selector in
+   container-sheet.js points at this same list so scroll position survives re-renders. */
+.dnd5e2.sheet.actor.group.lootshelf-container [data-application-part=inventory] .body {
+  overflow: hidden;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .currency,
+.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .middle {
+  flex: none;
+}
+
+/* Bottom spacing has to read the same whether the list is mid-scroll or scrolled to the
+   end. Padding inside the scroller only appears once you reach the bottom, which is why
+   the list ran flush to the frame while scrolling and then opened a hole at the end (the
+   group sheet's 54px, reserved for the floating create button this sheet removes). The
+   constant gap lives on .window-content, OUTSIDE the scroller; the 6px here just mirrors
+   the list's own top padding. */
+.dnd5e2.sheet.actor.group.lootshelf-container .inventory-element > .items-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+/* Slim identification bar. The group header is a title card — a 164px portrait under a
+   46px name — which is most of the window before any loot shows. A chest only needs to
+   say which chest it is, so this is a single ~52px row: small square portrait, name
+   beside it, everything below given over to contents. */
+.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header {
+  align-items: center;
+  gap: 10px;
+  padding-block: 6px;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header > .left {
+  flex: 0 0 40px;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header .portrait {
+  height: 40px;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header > .right {
+  justify-content: center;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-container .sheet-header .document-name {
+  font-size: var(--font-size-20, 20px);
+  text-align: start;
+  line-height: 1.2;
+}
+
 /* Loot Shelf — merchant shelf window. Leans on Foundry's own window chrome and CSS
    variables so it follows core light/dark theming; the fallbacks are core's classic
    parchment palette values. */

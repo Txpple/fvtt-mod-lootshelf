@@ -1,0 +1,22 @@
+{{!-- Loot container header: portrait + name, nothing else. Markup mirrors the dnd5e
+      group sheet header so the system's own styling dresses it. --}}
+<header class="sheet-header">
+
+    <div class="left">
+        <div class="portrait">
+            <img src="{{ document.img }}" alt="{{ document.name }}"
+                {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
+        </div>
+    </div>
+
+    <div class="right">
+        <div class="top">
+            {{#if editable}}
+            <input type="text" name="name" class="document-name uninput" value="{{ actor._source.name }}">
+            {{else}}
+            <div class="document-name">{{ document.name }}</div>
+            {{/if}}
+        </div>
+    </div>
+
+</header>

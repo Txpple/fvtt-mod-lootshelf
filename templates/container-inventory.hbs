@@ -1,0 +1,9 @@
+{{!-- The group sheet's inventory tab without the party-members sidebar. dnd5e's group CSS
+      lays this part out as a two-column grid (members rail + contents), so the contents
+      MUST stay wrapped in `.body` or they inherit the narrow rail column; the missing
+      first column is collapsed in styles/lootshelf.css rather than here. --}}
+<section class="tab {{ tab.cssClass }}" data-tab="{{ tab.id }}" data-group="{{ tab.group }}">
+    <section class="body">
+        {{> "systems/dnd5e/templates/inventory/inventory.hbs" }}
+    </section>
+</section>
