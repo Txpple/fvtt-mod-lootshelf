@@ -1,22 +1,38 @@
-# Loot Shelf — handoff (v0.2 uplift, 2026-08-07)
+# Loot Shelf — handoff (v0.2, 2026-08-08)
 
-Working state for a fresh session. Branch **`feat/container-sheet-v0.2`**, 8 commits ahead
-of `master`, nothing pushed. The commit messages are deliberately detailed — read them
-before changing any of the areas below, they record *why* each workaround exists.
+**v0.2 is finished, verified, and merged to `master` (pushed).** The commit messages are
+deliberately detailed — read them before changing any of the areas below, they record *why*
+each workaround exists. The one thing not yet done is cutting the release: `module.json`
+says `0.2.0` and its `download` URL points at a `v0.2.0` tag that does not exist, so the
+manifest's update check is broken until that tag and zip exist.
 
-## What this session did
+## What v0.2 is
 
-Rebuilt both UIs on dnd5e's own sheet framework. The owner's mandate: v0.1 had "blindly
+Both UIs rebuilt on dnd5e's own sheet framework. The owner's mandate: v0.1 had "blindly
 copied Item Piles", which was itself legacy UI; everything must be modern FVTT 13+ /
 dnd5e 5.x, reusing the system's components rather than hand-building lookalikes.
 
 - **Container sheet** (`scripts/container-sheet.js`) — a `BaseActorSheet` subclass showing
-  the system's inventory tab. Replaces the raw NPC statblock.
+  the system's inventory tab. Replaces the raw NPC statblock. Custom columns Value / Qty /
+  Take, a Take on the coin row, and a subtitle that defaults to what the chest is worth and
+  can be typed over by the GM.
 - **Merchant shelf** (`scripts/merchant-sheet.js`) — same construction, plus three custom
   inventory COLUMNS (shelf price / stock / Buy, an eye toggle for the GM). Replaces the
   hand-rolled v0.1 window entirely; `templates/merchant-shelf.hbs` is deleted.
 - **Sheet assignment** (`scripts/sheets.js`) — both roles swap the actor onto our sheet via
-  `flags.core.sheetClass`. Merchant wins if an actor is flagged both.
+  `flags.core.sheetClass`. Also home to the reach check.
+- **Taking** — Take routes through the kernel, so an unowned chest can be looted without
+  ownership, and offers the looter's **party stash** (a dnd5e group actor they belong to)
+  as a destination. `canReceive` in transfer.js widens the ownership rule for exactly that.
+- **Canvas drop** (`scripts/canvas-drop.js`) — a GM dragging an item from a compendium or
+  the sidebar onto the scene leaves it there as a container. GM only, source items only.
+- **Reach** — players must have a token beside a shop or chest to open it. Fails open when
+  distance cannot be measured. World setting.
+- **Self-clearing loot** — a container flagged `ephemeral` (what canvas-drop sets) removes
+  its tokens once players empty it. Deliberately NOT every container.
+
+An actor is a merchant **or** a container, never both — the config dialog enforces it with
+a radio. The stored flags keep their two-branch shape for back-compat.
 
 ## Environment
 
@@ -117,9 +133,13 @@ Confirmed by the owner in a real player client, over the real socket:
 - **Buy** — a player purchasing from the shelf.
 - **Sell** — a player completing a sale by dropping an item on the shelf.
 - **Take** — both the per-item button and the coin button, with the audit whisper.
+- **Party destination** — taking into a group actor's stash.
+- **Canvas drop** — dragging a compendium/sidebar item onto the scene.
+- **Reach** — refused at range, opens when adjacent.
+- **Self-clearing loot** — an emptied ephemeral container removing itself.
 - The **transport itself**, measured separately at a 4ms round trip.
 
-That is every flow the v0.2 handoff opened as a blocker. The token-art and opened-flag
+That is every flow this document ever opened as a blocker. The token-art and opened-flag
 items that used to sit on this list are gone rather than verified — the feature was cut,
 see the note in container.js.
 
@@ -133,6 +153,13 @@ bug is worked around.
 
 If it fails, check the browser console **on the player's client**, not the GM's; the error
 surfaces there.
+
+### Known loose end, owner's call
+
+An emptied ephemeral container loses its TOKENS but keeps its ACTOR, which sits in the
+"Loot Shelf" folder. Canvas-drop mints one actor per drop, so those husks accumulate.
+Deleting the actor too was left undone on purpose — it is irreversible, and "delete the
+container from canvas" asked for the token.
 
 ## Test fixtures left in the world
 
