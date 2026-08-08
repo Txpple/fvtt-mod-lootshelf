@@ -22,8 +22,9 @@ deliberately no trading, no vaults, and no multi-currency machinery here.
 
 ## GM quickstart
 
-- Right-click an actor in the sidebar → **Loot Shelf: Configure** to flag it as a
-  merchant and/or loot container (art states, price modifiers, infinite stock).
+- Right-click an actor in the sidebar → **Loot Shelf: Configure** to turn Loot Shelf on
+  and pick what the actor is: a loot container or a merchant shelf (with price modifiers
+  and infinite stock). An actor is one or the other, never both.
 - Stock either one by dragging items onto its normal sheet — attunement and equipped
   state are cleared on the way in. On a merchant, equipped or hidden (eye icon on the
   shelf) items never show to players.
@@ -31,10 +32,11 @@ deliberately no trading, no vaults, and no multi-currency machinery here.
   the shelf to sell. The shelf is the merchant's own sheet, opened without granting any
   ownership, so shop actors never clutter a player's sidebar. Buys and sells run GM-side
   over a plain-socket proxy, so a GM client must be connected.
-- Containers need no proxy: grant players ownership of the chest actor and they loot
-  through a dnd5e-native container sheet (the system's own inventory tab — currency,
-  search, sectioned item table) — drags out are *moves*, and the token art swaps
-  closed/open/empty on its own.
+- Players double-click a chest to loot it through a dnd5e-native container sheet (the
+  system's own inventory tab — currency, search, sectioned item table). Each row has a
+  **Take** button and the coin row has its own, so no ownership needs granting; drags out
+  are *moves* rather than copies. If the looter belongs to a party (a dnd5e group actor),
+  Take offers that party's stash as a destination alongside the character.
 - Everything is also scriptable: `game.modules.get("fvtt-mod-lootshelf").api` exposes
   `createMerchant`, `createLootContainer`, `setMerchant`, `setContainer`, `openShelf`,
   `configure`, `purchase`, `sell`, and `transferItem`.

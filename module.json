@@ -1,7 +1,7 @@
 {
   "id": "fvtt-mod-lootshelf",
   "title": "Loot Shelf",
-  "description": "Lean 5e-only loot containers and merchant shelf. A chest is an actor on the scene: token art swaps closed/open/empty, owners loot through a dnd5e-native container sheet built from the system's own inventory components, and drags out of a container default to move instead of copy. Merchants get one clean shelf window: browsable stock with prices, a buy flow that checks coin and hands the item over GM-side, selling back at a configurable rate, and a per-item hide-from-shelf flag. Native ApplicationV2 UI, plain game.socket GM proxy, no dependencies.",
+  "description": "Lean 5e-only loot containers and merchant shelf. A chest is an actor on the scene: players loot it through a dnd5e-native container sheet built from the system's own inventory components, taking items and coin with a Take button — into their character or their party's stash — without the GM granting ownership, and drags out default to move instead of copy. Merchants get the same sheet as a shop: browsable stock with prices, a buy flow that checks coin and hands the item over GM-side, selling back at a configurable rate, and a per-item hide-from-shelf flag. Native ApplicationV2 UI, plain game.socket GM proxy, no dependencies.",
   "version": "0.2.0",
   "authors": [
     {

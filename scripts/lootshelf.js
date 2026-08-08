@@ -4,10 +4,10 @@
  * Two features, nothing else (design.md is binding):
  *
  *   1. PLACEABLE LOOT CONTAINERS (container.js) — a chest is an actor with module flags.
- *      The GM grants ownership, players double-click and loot through the system's own
- *      sheet and drop pipeline; the module swaps token art (closed/open/empty), defaults
- *      container drags to MOVE instead of copy, and clears attuned/equipped on the way
- *      in. No custom window, no socket traffic.
+ *      Players double-click and loot through a dnd5e-native sheet (container-sheet.js)
+ *      and the system's own drop pipeline; the module defaults container drags to MOVE
+ *      instead of copy, clears attuned/equipped on the way in, and adds Take buttons that
+ *      route through the kernel so an unowned chest can be looted without ownership.
  *
  *   2. MERCHANT SHELF (merchant.js) — the one custom window, ApplicationV2 + Handlebars.
  *      Stock with prices, buy and sell-back flows, per-item hide-from-shelf flag. All
@@ -24,10 +24,9 @@
  *   const api = game.modules.get("fvtt-mod-lootshelf").api;
  *   await api.createMerchant({ name, img, items: [uuid|itemData, ...], priceModifier,
  *                              sellModifier, infiniteStock, folder });
- *   await api.createLootContainer({ name, imgClosed, imgOpen, imgEmpty, items,
- *                                   defaultOwnership, folder });
+ *   await api.createLootContainer({ name, img, items, defaultOwnership, folder });
  *   await api.setMerchant(actor, { enabled, priceModifier, sellModifier, infiniteStock });
- *   await api.setContainer(actor, { enabled, imgClosed, imgOpen, imgEmpty, opened });
+ *   await api.setContainer(actor, { enabled });
  *   api.openShelf(actor);        api.configure(actor);      // the GM dialog
  *   await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
  *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity });

@@ -52,8 +52,12 @@ Two features. **That's it.**
 - **Transfer kernel** — GM-proxy socket service: move/copy an item actor→actor with
   quantity-merge into existing stacks, coin deduction/award, attunement/equipped cleared on
   the way. A few hundred lines; everything else calls through it.
-- **Loot container** — an actor + module flags: art states (closed/open/empty) swapped on
-  the token, ownership-gated open; dnd5e container items handle nesting/capacity natively.
+- **Loot container** — an actor + module flags; dnd5e container items handle
+  nesting/capacity natively. *(Art states — closed/open/empty token images swapped as the
+  chest was opened and emptied — were built, shipped in v0.1, and **cut in v0.2**: unused
+  by the owner, and the source of the module's two worst workarounds, a single-writer rule
+  to stop GM clients fighting over stale art and a document-reset/redraw dance for core
+  #12118. A GM who wants an open-looking chest changes the token art.)*
   *(v0.2 uplift, owner-decided 2026-08-07):* contents are browsed through a **container
   sheet** — a subclass of dnd5e's `BaseActorSheet` whose parts are a minimal header plus
   the system's own inventory tab (currency row, search/filter controls, sectioned item
