@@ -295,13 +295,22 @@ async function removeEmptiedContainer(container) {
   }
 }
 
-/** Whisper an audit line to the GMs and the acting user. */
+/**
+ * Post an audit line to the whole table.
+ *
+ * These were whispered to the GMs and the acting player, which made every buy, sale and
+ * take invisible to everyone else — and a shared loot log is the point: it is what settles
+ * "who picked up the potion?" without anyone having to remember. Public now, by the
+ * owner's call on 2026-08-08.
+ *
+ * Authored as the acting user rather than as whichever GM client happened to handle the
+ * socket request, so the line sits under the right person in chat. The speaker alias keeps
+ * it visibly a Loot Shelf message rather than something their character said.
+ */
 function audit(content, user) {
-  const whisper = new Set(game.users.filter(u => u.isGM).map(u => u.id));
-  if (user) whisper.add(user.id);
   ChatMessage.implementation.create({
     content,
-    whisper: [...whisper],
+    ...(user ? { author: user.id } : {}),
     speaker: { alias: "Loot Shelf" }
   }).catch(err => console.error(`${MODULE_ID} | audit message failed`, err));
 }

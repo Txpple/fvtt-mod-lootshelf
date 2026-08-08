@@ -143,23 +143,21 @@ That is every flow this document ever opened as a blocker. The token-art and ope
 items that used to sit on this list are gone rather than verified — the feature was cut,
 see the note in container.js.
 
-### Still unconfirmed
+- **Drag-out of an unowned chest** — the `_onDropCreateItems` path in container.js, where
+  the dnd5e `asGear()` duplication bug is worked around.
 
-Only one, and it is a second door onto a proven room: **dragging loot out of a chest you
-do not own**. The kernel op underneath (`takeFromContainer`) is exercised constantly by the
-Take button; what has not been run since the v0.2 rewrite is the DRAG entry point into it —
-`_onDropCreateItems` in container.js, which is also where the dnd5e `asGear()` duplication
-bug is worked around.
+**Nothing is left unverified.** Every flow this document ever listed as a blocker has been
+run against a real player client.
 
-If it fails, check the browser console **on the player's client**, not the GM's; the error
-surfaces there.
+If something does break later, check the browser console **on the player's client**, not
+the GM's; these errors surface there.
 
-### Known loose end, owner's call
+### Accepted, not a loose end
 
-An emptied ephemeral container loses its TOKENS but keeps its ACTOR, which sits in the
-"Loot Shelf" folder. Canvas-drop mints one actor per drop, so those husks accumulate.
-Deleting the actor too was left undone on purpose — it is irreversible, and "delete the
-container from canvas" asked for the token.
+An emptied ephemeral container loses its TOKENS but keeps its ACTOR in the "Loot Shelf"
+folder, and canvas-drop mints one actor per drop, so those husks accumulate. The owner
+reviewed this on 2026-08-08 and chose to leave it: deleting the actor is irreversible, and
+clearing the canvas was the actual goal. Do not "fix" it unprompted.
 
 ## Test fixtures left in the world
 
