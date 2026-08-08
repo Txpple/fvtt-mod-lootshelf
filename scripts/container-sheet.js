@@ -131,6 +131,39 @@ Hooks.once("init", () => {
     }
 
     /**
+     * Where the loot can go: the looter, then any dnd5e group actor they belong to.
+     *
+     * A party with a shared stash is the normal destination for half of what comes out of
+     * a chest — coin especially — and making that a second manual drag afterwards is how
+     * loot ends up scattered across four sheets. The kernel allows a group destination on
+     * the same membership test (`canReceive` in transfer.js), so nothing here is trusted.
+     */
+    #destinations(looter) {
+      if (!looter) return [];
+      const parties = game.actors.filter(a =>
+        a.type === "group" && a.system?.members?.some(m => m.actor === looter));
+      return [looter, ...parties];
+    }
+
+    /**
+     * One button per destination, or a plain "Take" when the looter belongs to no party.
+     * Each resolves to `{destUuid, qty}`; Cancel and the close button resolve to something
+     * that is not an object, which is the caller's bail-out test.
+     */
+    #destinationButtons(destinations, looter, quantityOf) {
+      const solo = destinations.length === 1;
+      const buttons = destinations.map((dest, i) => ({
+        action: `dest${i}`,
+        label: dest === looter ? (solo ? "Take" : `Take for ${looter.name}`) : `Add to ${dest.name}`,
+        icon: dest === looter ? "fa-solid fa-hand-holding" : "fa-solid fa-users",
+        default: i === 0,
+        callback: (event, button) => ({ destUuid: dest.uuid, qty: quantityOf?.(button) ?? 1 })
+      }));
+      buttons.push({ action: "cancel", label: "Cancel" });
+      return buttons;
+    }
+
+    /**
      * What the chest is worth, as a one-line summary: how many things are in it and what
      * they are collectively worth. This is the default subtitle — see `_prepareContext`.
      */
@@ -360,29 +393,28 @@ Hooks.once("init", () => {
           + `<input type="number" name="qty" value="${max}" min="1" max="${max}" autofocus>`
           + `</div><p class="hint">Up to ${max}.</p></div>`
         : "";
+      const destinations = this.#destinations(looter);
+      const prompt = destinations.length > 1
+        ? `Take <strong>${esc(item.name)}</strong> — for ${esc(looter.name)}, or into the party's stash?`
+        : `Give <strong>${esc(item.name)}</strong> to ${esc(looter.name)}.`;
       const result = await foundry.applications.api.DialogV2.wait({
         classes: ["lootshelf-dialog"],
         window: { title: `Take from ${this.actor.name}` },
-        content: `<p>Give <strong>${esc(item.name)}</strong> to ${esc(looter.name)}.</p>${qtyField}`,
-        buttons: [
-          {
-            action: "take", label: "Take", icon: "fa-solid fa-hand-holding", default: true,
-            callback: (ev, button) =>
-              Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || max)))
-          },
-          { action: "cancel", label: "Cancel" }
-        ],
+        content: `<p>${prompt}</p>${qtyField}`,
+        buttons: this.#destinationButtons(destinations, looter, button =>
+          Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || max)))),
         rejectClose: false
       });
-      if (result == null || result === "cancel") return;
+      if (!result || typeof result !== "object") return;
       try {
         const res = await gmRequest("takeFromContainer", {
           containerUuid: this.actor.uuid,
-          actorUuid: looter.uuid,
+          actorUuid: result.destUuid,
           itemId: item.id,
-          quantity: Number(result) || 1
+          quantity: result.qty || 1
         });
-        ui.notifications.info(`Took ${res.quantity} × ${res.name}.`);
+        const dest = await fromUuid(result.destUuid);
+        ui.notifications.info(`Took ${res.quantity} × ${res.name} for ${dest?.name ?? "you"}.`);
       } catch (err) {
         ui.notifications.warn(err.message);
       }
@@ -399,24 +431,26 @@ Hooks.once("init", () => {
       const amount = totalCopper(this.actor.system?.currency);
       if (amount <= 0) return void ui.notifications.warn(`${this.actor.name} has no coin.`);
       const esc = Handlebars.escapeExpression;
+      const destinations = this.#destinations(looter);
+      const prompt = destinations.length > 1
+        ? `Take all <strong>${formatCopper(amount)}</strong> — for ${esc(looter.name)}, `
+          + "or into the party's stash?"
+        : `Give all <strong>${formatCopper(amount)}</strong> to ${esc(looter.name)}?`;
       const result = await foundry.applications.api.DialogV2.wait({
         classes: ["lootshelf-dialog"],
         window: { title: `Take coin from ${this.actor.name}` },
-        content: `<p>Give all <strong>${formatCopper(amount)}</strong> to `
-          + `${esc(looter.name)}?</p>`,
-        buttons: [
-          { action: "take", label: "Take it all", icon: "fa-solid fa-coins", default: true },
-          { action: "cancel", label: "Cancel" }
-        ],
+        content: `<p>${prompt}</p>`,
+        buttons: this.#destinationButtons(destinations, looter),
         rejectClose: false
       });
-      if (result !== "take") return;
+      if (!result || typeof result !== "object") return;
       try {
         const res = await gmRequest("takeCurrencyFromContainer", {
           containerUuid: this.actor.uuid,
-          actorUuid: looter.uuid
+          actorUuid: result.destUuid
         });
-        ui.notifications.info(`Took ${formatCopper(res.amount)}.`);
+        const dest = await fromUuid(result.destUuid);
+        ui.notifications.info(`Took ${formatCopper(res.amount)} for ${dest?.name ?? "you"}.`);
       } catch (err) {
         ui.notifications.warn(err.message);
       }

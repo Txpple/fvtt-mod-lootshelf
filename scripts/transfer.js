@@ -229,6 +229,26 @@ async function resolveActor(uuid) {
   return doc?.actor instanceof Actor ? doc.actor : null;
 }
 
+/**
+ * May `user` have loot delivered onto `actor`?
+ *
+ * Ownership is the usual answer, plus one widening: a dnd5e GROUP actor whose membership
+ * includes a character the user owns. Dropping loot into your own party's stash is the
+ * same act as taking it, one step further along — and the GM routinely does not hand
+ * players OWNER on the party actor itself, so demanding it would make "add to party" fail
+ * for exactly the tables that use a party stash.
+ *
+ * Deliberately NOT used by `transferItem`, which keeps its stricter both-endpoints-owned
+ * contract; this is the looting rule, and looting is the case that cannot satisfy that.
+ */
+function canReceive(actor, user) {
+  if (!actor || !user) return false;
+  if (user.isGM) return true;
+  if (actor.testUserPermission(user, "OWNER")) return true;
+  return actor.type === "group"
+    && !!actor.system?.members?.some(m => m.actor?.testUserPermission(user, "OWNER"));
+}
+
 /** Whisper an audit line to the GMs and the acting user. */
 function audit(content, user) {
   const whisper = new Set(game.users.filter(u => u.isGM).map(u => u.id));
@@ -340,8 +360,8 @@ const OPS = {
       throw new Error("Loot Shelf: invalid loot endpoints.");
     if (!container.flags?.[MODULE_ID]?.container?.enabled)
       throw new Error("Loot Shelf: that actor is not a loot container.");
-    if (!user?.isGM && !to.testUserPermission(user, "OWNER"))
-      throw new Error("Loot Shelf: you can only loot onto a character you own.");
+    if (!canReceive(to, user))
+      throw new Error(`Loot Shelf: you can't put loot on ${to.name}.`);
     const item = container.items.get(itemId);
     if (!item || !isPhysical(item))
       throw new Error("Loot Shelf: no such physical item in the container.");
@@ -372,8 +392,8 @@ const OPS = {
       throw new Error("Loot Shelf: invalid loot endpoints.");
     if (!container.flags?.[MODULE_ID]?.container?.enabled)
       throw new Error("Loot Shelf: that actor is not a loot container.");
-    if (!user?.isGM && !to.testUserPermission(user, "OWNER"))
-      throw new Error("Loot Shelf: you can only loot onto a character you own.");
+    if (!canReceive(to, user))
+      throw new Error(`Loot Shelf: you can't put coin on ${to.name}.`);
 
     const taken = coins(container.system?.currency);
     const amount = totalCopper(taken);
