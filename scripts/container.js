@@ -191,8 +191,71 @@ function containerVerdict(sheet, event, data) {
   return "block";
 }
 
+/**
+ * Work around a dnd5e 5.x bug that breaks EVERY move out of a container.
+ *
+ * `BaseActorSheet#_onDropCreateItems` converts gear taken from an NPC into its
+ * player-facing version before creating it:
+ *
+ *   items = await Promise.all(items.map(i =>
+ *     i.actor?.system.isNPC && (i.actor !== this.actor) && i.system.asGear ? i.system.asGear() : i));
+ *   ...
+ *   if ( behavior === "move" ) items.forEach(i => i.delete({ deleteContents: true }));
+ *
+ * For an item carrying the "gear" property, `asGear()` returns a CLONE OF THE COMPENDIUM
+ * ENTRY (dnd5e.mjs `asGear`: `fromUuid(compendiumSource)` then `item.clone(...)`). The
+ * move-delete then runs over the transformed array, so it targets that clone — a document
+ * whose `pack` is a locked compendium and whose `parent` is null. Two consequences:
+ * "You may not delete documents in the locked compendium" on screen, and the real item
+ * never leaves the chest, so the move quietly duplicates the loot instead.
+ *
+ * Loot containers are NPC actors, so this fires on essentially every drag-out. The fix
+ * keeps the system's creation path exactly as-is — including the gear transform, which is
+ * the behavior we want — but runs it as a "copy" so its broken delete never happens, then
+ * deletes the true source documents here. Deleting only AFTER creation resolves preserves
+ * the family rule that a failed copy must never destroy the original.
+ *
+ * Scoped to drags out of a flagged container: stock NPC looting hits the same bug, but
+ * fixing the system at large is not this module's job.
+ */
+function installContainerMoveFix(Base) {
+  const orig = Base?.prototype?._onDropCreateItems;
+  if (!orig) {
+    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropCreateItems not found — `
+      + "container drag-out will duplicate items on dnd5e builds that need the fix.");
+    return;
+  }
+  Base.prototype._onDropCreateItems = async function (event, items, behavior) {
+    behavior ??= event._behavior;
+    let sources = [];
+    try {
+      if (behavior === "move") {
+        sources = (items ?? []).filter(i => i instanceof Item && isContainer(i.parent));
+      }
+    } catch (err) {
+      console.error(`${MODULE_ID} | container move check failed`, err);
+    }
+    if (!sources.length) return orig.call(this, event, items, behavior);
+
+    const created = await orig.call(this, event, items, "copy");
+    for (const source of sources) {
+      try {
+        await source.delete({ deleteContents: true });
+      } catch (err) {
+        console.error(`${MODULE_ID} | container move: deleting the source item failed; `
+          + "the item may now exist in both places", err);
+        ui.notifications.warn(
+          `Loot Shelf: ${source.name} was copied but could not be removed from `
+          + `${source.parent?.name ?? "the container"} — check for a duplicate.`);
+      }
+    }
+    return created;
+  };
+}
+
 Hooks.once("setup", () => {
   const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
+  installContainerMoveFix(Base);
   const orig = Base?.prototype?._defaultDropBehavior;
   if (!orig) {
     console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_defaultDropBehavior not found — `
