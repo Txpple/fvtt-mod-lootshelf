@@ -1,9 +1,9 @@
 {{!-- `always-interactive` is required, not decorative: a shopper does not own the
       merchant, so the sheet renders read-only and every control without this class is
       disabled. The purchase is re-validated GM-side regardless of what the button does. --}}
-<div class="item-detail lootshelf-buy" data-column-id="shelfBuy">
+<div class="item-detail item-shelfBuy" data-column-id="shelfBuy">
     <button type="button" class="lootshelf-buy-button always-interactive" data-action="buy"
-            aria-label="{{ localize "Buy" }}">
+            aria-label="Buy {{ item.name }}">
         <i class="fa-solid fa-coins" inert></i>
         <span>Buy</span>
     </button>

@@ -1,7 +1,11 @@
 {{!-- Shelf price: the item's price AFTER the merchant's modifier. The system's own price
       column reads system.price.value straight off the item and knows nothing about the
-      markup, so it would quote a number the buyer is never charged. --}}
-<div class="item-detail item-price lootshelf-price {{#unless ctx.shelf.priceLabel}}empty{{/unless}}"
+      markup, so it would quote a number the buyer is never charged.
+
+      The class must be item-<columnId>: dnd5e sizes columns with CSS keyed on that class
+      for BOTH the header cell and the row cell, so any other name leaves the two out of
+      step. Widths for these three live in styles/lootshelf.css. --}}
+<div class="item-detail item-shelfPrice {{#unless ctx.shelf.priceLabel}}empty{{/unless}}"
      data-column-id="shelfPrice">
     {{#if ctx.shelf.priceLabel}}{{ ctx.shelf.priceLabel }}{{/if}}
 </div>

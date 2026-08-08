@@ -90,14 +90,45 @@
 /* Merchant shelf: the shop-specific columns. Everything else about this window is the
    shared rules above plus dnd5e's own inventory styling. */
 
-.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-price {
+/* Column widths. dnd5e sizes inventory columns with CSS keyed on `.item-<columnId>`,
+   applied to the header cell AND the row cell so the two line up — `.item-price` is
+   80px, `.item-weight` 60px, and so on. A column id the system has never heard of has
+   no such rule, so ours collapsed to zero width and the headers ran together as
+   "PRICESTOCK". These are the missing rules; the widths match the descriptors declared
+   in merchant-sheet.js. */
+.dnd5e2 .items-section .items-header .item-shelfPrice,
+.dnd5e2 .items-section .item .item-shelfPrice {
+  width: 90px;
+  justify-content: end;
+  padding-right: 0.5rem;
   font-weight: 600;
   white-space: nowrap;
-  justify-content: flex-end;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-stock {
+.dnd5e2 .items-section .items-header .item-shelfStock,
+.dnd5e2 .items-section .item .item-shelfStock {
+  width: 60px;
+  justify-content: center;
   opacity: 0.8;
+}
+
+.dnd5e2 .items-section .items-header .item-shelfBuy,
+.dnd5e2 .items-section .item .item-shelfBuy {
+  width: 90px;
+  justify-content: center;
+}
+
+.dnd5e2 .items-section .items-header .item-shelfHide,
+.dnd5e2 .items-section .item .item-shelfHide {
+  width: 40px;
+  justify-content: center;
+}
+
+/* The little sparkle/property glyphs dnd5e stamps next to an item's name. On a character
+   sheet they tell you what you're wielding; on a shelf they are noise between the name
+   and the price, and they quietly reveal which goods are magical. */
+.dnd5e2.sheet.actor.group.lootshelf-merchant .items-section .item-name .tags {
+  display: none;
 }
 
 .dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-buy-button {

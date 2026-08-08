@@ -1,7 +1,7 @@
 {{!-- GM-only curation: an eye per row, toggling whether shoppers see it. Struck-through
       eye means hidden. Equipped gear is excluded from the shelf by construction and shows
       a lock instead, since un-hiding it would not help — unequip it to put it up for sale. --}}
-<div class="item-detail lootshelf-hide" data-column-id="shelfHide">
+<div class="item-detail item-shelfHide" data-column-id="shelfHide">
     {{#if ctx.shelf.equipped}}
     <i class="fa-solid fa-lock lootshelf-locked"
        data-tooltip="Equipped gear never appears on the shelf. Unequip it to sell it."></i>
