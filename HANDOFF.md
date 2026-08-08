@@ -112,22 +112,27 @@ Two traps that cost real time:
 
 ### Verified end to end (2026-08-08)
 
-- **Take** — both the per-item Take button and the coin Take, through the socket to the
-  GM and back, with the audit whisper. Confirmed by the owner in a real player client.
-- The **transport itself**, per above, which is what all of the below also ride on.
+Confirmed by the owner in a real player client, over the real socket:
+
+- **Buy** — a player purchasing from the shelf.
+- **Sell** — a player completing a sale by dropping an item on the shelf.
+- **Take** — both the per-item button and the coin button, with the audit whisper.
+- The **transport itself**, measured separately at a 4ms round trip.
+
+That is every flow the v0.2 handoff opened as a blocker. The token-art and opened-flag
+items that used to sit on this list are gone rather than verified — the feature was cut,
+see the note in container.js.
 
 ### Still unconfirmed
 
-1. A player clicking **Buy** on the shelf.
-2. A player completing a **sale** by dropping an item on the shelf.
-3. A player **dragging loot out of a chest** they do not own. The kernel op underneath
-   (`takeFromContainer`) is now proven by the Take button, but the drag entry point into
-   it is not.
-4. Container **token art** swapping closed/open/empty, and the opened-flag flip on first
-   player open — untouched since v0.1.
+Only one, and it is a second door onto a proven room: **dragging loot out of a chest you
+do not own**. The kernel op underneath (`takeFromContainer`) is exercised constantly by the
+Take button; what has not been run since the v0.2 rewrite is the DRAG entry point into it —
+`_onDropCreateItems` in container.js, which is also where the dnd5e `asGear()` duplication
+bug is worked around.
 
-If any of those fail, check the browser console **on the player's client**, not the GM's;
-the error surfaces there.
+If it fails, check the browser console **on the player's client**, not the GM's; the error
+surfaces there.
 
 ## Test fixtures left in the world
 
