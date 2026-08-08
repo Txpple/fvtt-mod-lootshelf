@@ -86,28 +86,58 @@ inspect, then `delete game.user.isGM`.
   icon, no item property glyphs on the shelf, slim 52px header, currency and search pinned
   while only the list scrolls.
 
-## NOT YET VERIFIED — needs a real player client
+## The player -> GM socket hop IS testable — join as a player
 
-Everything below is the reason this branch is not merged. The assistant's session is
-itself the elected GM, and Foundry does not loop a socket emit back to its sender, so the
-**player -> GM socket hop could not be exercised from here**. That path is unchanged v0.1
-code, smoke-tested in the previous release, but these flows are unconfirmed end to end:
+The previous note here claimed this could not be exercised, because the assistant's
+session was itself the elected GM and Foundry never loops a socket emit back to its
+sender. That was a property of *which user was joined*, not a limitation. **Join one of
+the spare `Open Player 1` / `Open Player 2` slots instead** (no password; `Open Player 1`
+owns the PC **Salyth**, which makes it a complete shopper and looter) and leave any other
+GM client connected. Verified 2026-08-08: a 4ms round trip, the rejection raised by the
+GM-side validator.
+
+To probe the transport without mutating anything, call
+`api.purchase({ merchantUuid, buyerUuid, itemId: "bogus" })` and check the rejection text
+comes back from the kernel rather than timing out.
+
+Two traps that cost real time:
+
+- **Only `game.users.activeGM` answers**, and after a deploy every GM client must be
+  reloaded or ops fail with `unknown operation "<op>"`. Election does not prefer the human
+  — a leftover **Claude** session outranked the owner's own `Matt the DM` and kept
+  answering with stale code. Check `game.users.activeGM?.name` before blaming the code.
+- **The MCP bridge's writes do not reach the live world.** `update-actor` returns
+  `success: true` and the browser client never sees the change; its `list-actors` /
+  `list-users` are stale too. Read and write through the browser session.
+
+### Verified end to end (2026-08-08)
+
+- **Take** — both the per-item Take button and the coin Take, through the socket to the
+  GM and back, with the audit whisper. Confirmed by the owner in a real player client.
+- The **transport itself**, per above, which is what all of the below also ride on.
+
+### Still unconfirmed
 
 1. A player clicking **Buy** on the shelf.
 2. A player completing a **sale** by dropping an item on the shelf.
-3. A player **dragging loot out of a chest** they do not own (routes through
-   `takeFromContainer`).
+3. A player **dragging loot out of a chest** they do not own. The kernel op underneath
+   (`takeFromContainer`) is now proven by the Take button, but the drag entry point into
+   it is not.
 4. Container **token art** swapping closed/open/empty, and the opened-flag flip on first
-   player open — untouched this session but still unverified from v0.1.
+   player open — untouched since v0.1.
 
-If any of those fail, the useful first move is to check the browser console **on the
-player's client**, not the GM's; the error is raised there.
+If any of those fail, check the browser console **on the player's client**, not the GM's;
+the error surfaces there.
 
 ## Test fixtures left in the world
 
 - Actor **"Merchant Test"** — flagged merchant, priceModifier 1.2, sellModifier 0.5,
   purse set to 100 gp, stocked with Leather Armor and a Lute (quantity 3 each) purely for
-  testing. Delete or repurpose freely.
+  testing. Delete or repurpose freely. (Note: the MCP bridge cannot see this actor —
+  see the bridge warning above. The browser client can.)
+- **"The Party"** is the owner's real dnd5e **group actor**, set as the world's primary
+  party. Not a Loot Shelf fixture, and not ours to touch — but worth knowing it is the
+  sheet both our windows are built on, which is where their look comes from.
 - Two macros: **"LS: Capture drag error"** (arms a diagnostic that whispers a stack trace)
   and **"LS: Diagnose container sheet"**. Both are debug aids and can be deleted.
 - The macro **"LS: Test Chest v0.2"** creates a container through the public API.
