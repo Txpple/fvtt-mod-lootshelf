@@ -1,0 +1,7 @@
+{{!-- How many are in the chest. The system's own quantity column is a live -/+ editor,
+      which a looter has no use for and could not operate anyway — they don't own the
+      chest, so its controls render disabled. This is the same plain readout the shelf
+      gives for stock, and lines up with it. --}}
+<div class="item-detail item-lootQty" data-column-id="lootQty">
+    {{ ctx.loot.qtyLabel }}
+</div>

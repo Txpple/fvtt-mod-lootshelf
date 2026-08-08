@@ -42,3 +42,26 @@ export function sheetClassUpdate(actor, flags = {}) {
 export function sheetUnset(actor) {
   return actor.getFlag("core", "sheetClass") === undefined;
 }
+
+/**
+ * Chrome both Loot Shelf sheets drop, re-applied after every render.
+ *
+ * - The CURRENCY MANAGER button, which dnd5e puts at the head of the coin row. On a chest
+ *   or a shelf that row is a readout of what is lying there, not a wallet to reorganise.
+ * - The EQUIP / ATTUNE / PREPARE controls. dnd5e's controls cell renders edit+delete when
+ *   the sheet is editable and these three when it is merely owned — which is what a GM
+ *   gets here by default. Nobody wears the shop's stock or attunes to loot that is still
+ *   sitting in the chest, and on a merchant equipping actively removes goods from sale.
+ *
+ * Removed from the DOM rather than hidden in CSS so they stay out of the tab order, the
+ * same reasoning that applies to `.create-child` on both sheets.
+ */
+export function trimSheetChrome(element) {
+  if (!element) return;
+  element.querySelector('.currency [data-action="currency"]')?.remove();
+  for (const action of ["equip", "attune", "prepare"]) {
+    for (const button of element.querySelectorAll(`.item-controls [data-action="${action}"]`)) {
+      button.remove();
+    }
+  }
+}

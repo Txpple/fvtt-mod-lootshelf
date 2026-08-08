@@ -24,7 +24,10 @@
  * core's Sheet configuration.
  */
 
-import { MODULE_ID } from "./transfer.js";
+import {
+  MODULE_ID, isPhysical, priceInCopper, formatCopper, totalCopper, gmRequest
+} from "./transfer.js";
+import { trimSheetChrome } from "./sheets.js";
 
 export { CONTAINER_SHEET_ID } from "./sheets.js";
 
@@ -48,9 +51,13 @@ Hooks.once("init", () => {
       // guarded step, not looking: an unowned take is re-validated GM-side by the
       // transfer kernel's takeFromContainer (see container.js).
       viewPermission: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE,
-      // No title-bar icon: dnd5e sheets hide the window title, so an icon just floats
-      // alone in the middle of the header bar with nothing to label.
-      window: { icon: "" }
+      // No title-bar icon: the bar carries a one-word role label (see `title`) and an icon
+      // beside it would only repeat what the portrait below already says.
+      window: { icon: "" },
+      actions: {
+        take: LootContainerSheet.#onTake,
+        takeCurrency: LootContainerSheet.#onTakeCurrency
+      }
     };
 
     static PARTS = {
@@ -64,7 +71,10 @@ Hooks.once("init", () => {
           "systems/dnd5e/templates/inventory/inventory.hbs",
           "systems/dnd5e/templates/inventory/activity.hbs",
           "systems/dnd5e/templates/inventory/containers.hbs",
-          "systems/dnd5e/templates/inventory/encumbrance.hbs"
+          "systems/dnd5e/templates/inventory/encumbrance.hbs",
+          `modules/${MODULE_ID}/templates/columns/loot-value.hbs`,
+          `modules/${MODULE_ID}/templates/columns/loot-qty.hbs`,
+          `modules/${MODULE_ID}/templates/columns/loot-take.hbs`
         ],
         scrollable: [".items-list"]
       }
@@ -77,6 +87,17 @@ Hooks.once("init", () => {
     tabGroups = { primary: "inventory" };
 
     _filters = { inventory: { name: "", properties: new Set() } };
+
+    /**
+     * dnd5e hides the frame title on actor sheets because its own header card already names
+     * the document — which on these slim sheets leaves the whole bar empty. Name the ROLE
+     * instead: the chest's own name is right underneath, so repeating it would waste the
+     * line, but "which kind of window is this" is not otherwise stated anywhere.
+     * styles/lootshelf.css un-hides it.
+     */
+    get title() {
+      return "Container";
+    }
 
     /**
      * Core reads `static TABS` as a RECORD of tab groups; dnd5e overrides it with an
@@ -93,28 +114,88 @@ Hooks.once("init", () => {
       return super._getTabsConfig(group);
     }
 
+    /* ---------------------------------------------- */
+    /*  Chest state                                   */
+    /* ---------------------------------------------- */
+
+    get config() {
+      return this.actor.getFlag(MODULE_ID, "container") ?? {};
+    }
+
+    /** The actor carrying the loot off: assigned character first, else a controlled token. */
+    get looter() {
+      if (game.user.isGM) return null; // the GM drags; the Take button is for players
+      return game.user.character
+        ?? canvas?.tokens?.controlled?.find(t => t.actor?.isOwner)?.actor
+        ?? null;
+    }
+
+    /**
+     * What the chest is worth, as a one-line summary: how many things are in it and what
+     * they are collectively worth. This is the default subtitle — see `_prepareContext`.
+     */
+    get #summary() {
+      let count = 0;
+      let value = totalCopper(this.actor.system?.currency);
+      for (const item of this.actor.items) {
+        if (!isPhysical(item)) continue;
+        const qty = Math.floor(item.system.quantity ?? 1);
+        if (qty <= 0) continue;
+        count += qty;
+        value += priceInCopper(item) * qty;
+      }
+      if (!count && value <= 0) return "Empty";
+      const bits = [];
+      if (count) bits.push(`${count} item${count === 1 ? "" : "s"}`);
+      if (value > 0) bits.push(`${formatCopper(value)} all told`);
+      return bits.join(" · ");
+    }
+
     /** @override */
     async _configureInventorySections(sections) {
       sections.forEach(s => s.minWidth = 200);
-      // A nested bag on a character is a sub-inventory you drill into, so dnd5e gives the
-      // Containers section a capacity meter instead of the usual columns. Inside a loot
-      // container a bag is just another thing to carry off, so it should line up with
-      // everything else. Borrow the contents section's own column list rather than naming
-      // columns here, so this tracks whatever the system considers standard.
-      const Inventory = customElements.get(this.options.elements.inventory);
-      const standard = Inventory?.SECTIONS?.contents?.columns;
-      const containers = sections.find(s => s.id === "containers");
-      if (containers && standard) containers.columns = [...standard];
+      const value = {
+        id: "lootValue", width: 90, order: 300, priority: 200, label: "Value",
+        template: `modules/${MODULE_ID}/templates/columns/loot-value.hbs`
+      };
+      const qty = {
+        id: "lootQty", width: 60, order: 500, priority: 400, label: "Qty",
+        template: `modules/${MODULE_ID}/templates/columns/loot-qty.hbs`
+      };
+      const take = {
+        id: "lootTake", width: 90, order: 900, priority: 100, label: "",
+        template: `modules/${MODULE_ID}/templates/columns/loot-take.hbs`
+      };
+      // A looter reads the chest to decide what is worth carrying: what it's worth, what it
+      // weighs, how many there are, and a way to take it. The system's own quantity column
+      // is a live +/- editor and its charges column is about using an item you already own
+      // — neither means anything to someone standing over a chest. The GM keeps the
+      // editable quantity and the controls menu, which is how a chest gets stocked.
+      //
+      // Setting the list on EVERY section also settles nested bags: dnd5e gives the
+      // Containers section a capacity meter instead of ordinary columns, which left a bag
+      // sitting in a chest misaligned against the loot around it.
+      const columns = game.user.isGM
+        ? [value, "weight", "quantity", "controls"]
+        : [value, "weight", qty, take];
+      sections.forEach(s => s.columns = columns);
     }
 
     /** @inheritDoc */
     async _prepareInventoryContext(context, options) {
       context = await super._prepareInventoryContext(context, options);
-      // The section change above is only half of it: dnd5e also stamps a per-ROW column
-      // override (capacity + controls) onto every container. Drop it so each row falls
-      // back to the section's columns, which is what makes the grid line up.
-      for (const container of context.containers ?? []) {
-        delete context.itemContext?.[container.id]?.columns;
+      for (const item of this.actor.items) {
+        const ctx = context.itemContext?.[item.id];
+        if (!ctx) continue;
+        const value = priceInCopper(item);
+        ctx.loot = {
+          valueLabel: value > 0 ? formatCopper(value) : "",
+          qtyLabel: String(Math.floor(item.system.quantity ?? 0))
+        };
+        // The section change above is only half of it: dnd5e also stamps a per-ROW column
+        // override (capacity + controls) onto every container item. Drop it so each row
+        // falls back to the section's columns, which is what makes the grid line up.
+        delete ctx.columns;
       }
       // Clicking a row in a chest you don't own should OPEN the item to read it, not try
       // to use it — using needs ownership and fails with a permissions error.
@@ -126,6 +207,28 @@ Hooks.once("init", () => {
           ctx.activities = [];
         }
       }
+      return context;
+    }
+
+    /**
+     * The one line under the chest's name, mirroring the shelf's.
+     *
+     * A shop's subtitle writes itself from the deal on offer; a chest has no deal, so the
+     * default is what the chest is WORTH — "7 items · 2,980 gp all told" — which is the
+     * thing a party actually asks. A GM who wants to say something else (what it looks
+     * like, who it belonged to, that it is trapped) types over it, and that note then shows
+     * to everyone. The auto-summary stays as the input's placeholder so the GM can always
+     * see what players are reading when no note is set.
+     */
+    async _prepareContext(options) {
+      const context = await super._prepareContext(options);
+      const note = this.config.note ?? "";
+      context.loot = {
+        isGM: game.user.isGM,
+        note,
+        summary: this.#summary,
+        subtitle: note.trim() || this.#summary
+      };
       return context;
     }
 
@@ -145,6 +248,66 @@ Hooks.once("init", () => {
     async _onFirstRender(context, options) {
       await super._onFirstRender(context, options);
       this.element.querySelector(".create-child")?.remove();
+    }
+
+    /** @inheritDoc */
+    async _onRender(context, options) {
+      await super._onRender(context, options);
+      trimSheetChrome(this.element);
+      this.#renderTakeCurrency();
+      this.#bindNote();
+    }
+
+    /**
+     * A "Take" at the end of the coin row. Coin is the one thing in a chest with no row of
+     * its own, so before this there was simply no way for a player to pick it up — the
+     * currency boxes are read-only to anyone who doesn't own the chest. Injected rather
+     * than templated because the coin row comes from the system's inventory partial.
+     *
+     * Takes the WHOLE purse for now; splitting it is a later conversation.
+     */
+    #renderTakeCurrency() {
+      if (game.user.isGM) return;
+      const currency = this.element.querySelector(".inventory-element > .currency");
+      if (!currency) return;
+      const amount = totalCopper(this.actor.system?.currency);
+      const button = document.createElement("button");
+      button.type = "button";
+      // `always-interactive` is required, not decorative: a looter does not own the chest,
+      // so the sheet renders read-only and every control without it is disabled.
+      button.className = "lootshelf-action-button lootshelf-take-currency always-interactive";
+      button.dataset.action = "takeCurrency";
+      // Kept in place and greyed when the chest is broke, rather than vanishing: the row
+      // Take buttons hold their lane whatever the row says, and a control that disappears
+      // reads as "this chest works differently" instead of "there is nothing here".
+      button.disabled = amount <= 0;
+      button.dataset.tooltip = amount > 0
+        ? `Take ${formatCopper(amount)}`
+        : "There is no coin in here.";
+      button.setAttribute("aria-label", amount > 0
+        ? `Take the coin from ${this.actor.name}`
+        : "No coin to take");
+      button.innerHTML = '<i class="fa-solid fa-coins" inert></i><span>Take</span>';
+      currency.append(button);
+    }
+
+    /**
+     * Persist the GM's subtitle note. This is deliberately NOT a plain form field: dnd5e
+     * opens these sheets un-editable (the lock in the frame governs it), so a `name="..."`
+     * input would neither submit nor even render enabled. Writing the flag directly is
+     * always allowed for a GM and sidesteps the sheet's edit mode entirely.
+     */
+    #bindNote() {
+      const input = this.element.querySelector(".lootshelf-note");
+      if (!input) return;
+      input.addEventListener("change", () => {
+        const value = input.value.trim();
+        this.actor.setFlag(MODULE_ID, "container.note", value)
+          .catch(err => {
+            console.error(`${MODULE_ID} | saving the container note failed`, err);
+            ui.notifications.error("Loot Shelf: that note could not be saved.");
+          });
+      });
     }
 
     /**
@@ -168,6 +331,96 @@ Hooks.once("init", () => {
         if (!fallback) return this;
         return new fallback.cls({ document: this.document }).render({ force: true });
       }
+    }
+
+    /* ---------------------------------------------- */
+    /*  Taking                                        */
+    /* ---------------------------------------------- */
+
+    /**
+     * Take loot without dragging. The drag-out path still exists and still works — this is
+     * the same operation behind a button, because "drag the row onto your character sheet"
+     * is only discoverable if you already know it, and it needs both windows open.
+     *
+     * Routed through the kernel's `takeFromContainer` exactly like the drag, so an unowned
+     * chest is re-validated GM-side rather than trusted here.
+     */
+    static async #onTake(event, target) {
+      const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+      if (!item) return;
+      const looter = this.looter;
+      if (!looter) {
+        return void ui.notifications.warn("Loot Shelf: assign a character to your user "
+          + "(or select a token you own) before taking loot.");
+      }
+      const max = Math.max(1, Math.floor(item.system.quantity ?? 1));
+      const esc = Handlebars.escapeExpression;
+      const qtyField = max > 1
+        ? `<div class="form-group"><label>Quantity</label><div class="form-fields">`
+          + `<input type="number" name="qty" value="${max}" min="1" max="${max}" autofocus>`
+          + `</div><p class="hint">Up to ${max}.</p></div>`
+        : "";
+      const result = await foundry.applications.api.DialogV2.wait({
+        classes: ["lootshelf-dialog"],
+        window: { title: `Take from ${this.actor.name}` },
+        content: `<p>Give <strong>${esc(item.name)}</strong> to ${esc(looter.name)}.</p>${qtyField}`,
+        buttons: [
+          {
+            action: "take", label: "Take", icon: "fa-solid fa-hand-holding", default: true,
+            callback: (ev, button) =>
+              Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || max)))
+          },
+          { action: "cancel", label: "Cancel" }
+        ],
+        rejectClose: false
+      });
+      if (result == null || result === "cancel") return;
+      try {
+        const res = await gmRequest("takeFromContainer", {
+          containerUuid: this.actor.uuid,
+          actorUuid: looter.uuid,
+          itemId: item.id,
+          quantity: Number(result) || 1
+        });
+        ui.notifications.info(`Took ${res.quantity} × ${res.name}.`);
+      } catch (err) {
+        ui.notifications.warn(err.message);
+      }
+      this.render();
+    }
+
+    /** Empty the chest's purse into the looter's. Confirmed, because it is all-or-nothing. */
+    static async #onTakeCurrency(event, target) {
+      const looter = this.looter;
+      if (!looter) {
+        return void ui.notifications.warn("Loot Shelf: assign a character to your user "
+          + "(or select a token you own) before taking coin.");
+      }
+      const amount = totalCopper(this.actor.system?.currency);
+      if (amount <= 0) return void ui.notifications.warn(`${this.actor.name} has no coin.`);
+      const esc = Handlebars.escapeExpression;
+      const result = await foundry.applications.api.DialogV2.wait({
+        classes: ["lootshelf-dialog"],
+        window: { title: `Take coin from ${this.actor.name}` },
+        content: `<p>Give all <strong>${formatCopper(amount)}</strong> to `
+          + `${esc(looter.name)}?</p>`,
+        buttons: [
+          { action: "take", label: "Take it all", icon: "fa-solid fa-coins", default: true },
+          { action: "cancel", label: "Cancel" }
+        ],
+        rejectClose: false
+      });
+      if (result !== "take") return;
+      try {
+        const res = await gmRequest("takeCurrencyFromContainer", {
+          containerUuid: this.actor.uuid,
+          actorUuid: looter.uuid
+        });
+        ui.notifications.info(`Took ${formatCopper(res.amount)}.`);
+      } catch (err) {
+        ui.notifications.warn(err.message);
+      }
+      this.render();
     }
   }
 

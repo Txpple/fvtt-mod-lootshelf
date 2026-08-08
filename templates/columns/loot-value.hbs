@@ -1,0 +1,12 @@
+{{!-- What a piece of loot is worth, spelled out ("2 gp 5 sp") instead of the system's
+      number-plus-coin-glyph. A chest is scanned to decide what is worth carrying, and the
+      glyph made every row end in a small icon that had to be decoded first; it also can't
+      say "2 gp 5 sp" at all, only "2.5".
+
+      The class must be item-<columnId>: dnd5e sizes columns with CSS keyed on that name for
+      BOTH the header cell and the row cell, so any other name leaves the two out of step.
+      Widths live in styles/lootshelf.css and match the shelf's price column exactly. --}}
+<div class="item-detail item-lootValue {{#unless ctx.loot.valueLabel}}empty{{/unless}}"
+     data-column-id="lootValue">
+    {{#if ctx.loot.valueLabel}}{{ ctx.loot.valueLabel }}{{/if}}
+</div>

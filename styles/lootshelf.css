@@ -124,14 +124,42 @@
   justify-content: center;
 }
 
+/* Container sheet: the loot columns. Value / Qty / Take deliberately reuse the shelf's
+   price / stock / buy geometry so a chest and a shop read as the same kind of window —
+   the value right-aligned against the count, the button in a fixed lane at the end. */
+.dnd5e2 .items-section .items-header .item-lootValue,
+.dnd5e2 .items-section .item .item-lootValue {
+  width: 90px;
+  justify-content: end;
+  padding-right: 0.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dnd5e2 .items-section .items-header .item-lootQty,
+.dnd5e2 .items-section .item .item-lootQty {
+  width: 60px;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+.dnd5e2 .items-section .items-header .item-lootTake,
+.dnd5e2 .items-section .item .item-lootTake {
+  width: 90px;
+  justify-content: center;
+}
+
 /* The little sparkle/property glyphs dnd5e stamps next to an item's name. On a character
-   sheet they tell you what you're wielding; on a shelf they are noise between the name
-   and the price, and they quietly reveal which goods are magical. */
-.dnd5e2.sheet.actor.group.lootshelf-merchant .items-section .item-name .tags {
+   sheet they tell you what you're wielding; in a shop or a chest they are noise between
+   the name and the value — and they quietly answer "is this magical?" for free, before
+   anyone has identified anything. Hidden on both sheets for that second reason especially:
+   a chest full of unidentified loot should not label its own treasure. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet .items-section .item-name .tags {
   display: none;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-buy-button {
+/* Buy and Take are the same control wearing different words. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet .lootshelf-action-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -139,6 +167,60 @@
   padding: 0 10px;
   line-height: 26px;
   white-space: nowrap;
+}
+
+/* Coin has no row of its own, so its Take sits at the end of the currency strip. The
+   strip is a plain flex row of labels; `flex: none` keeps the button from being stretched
+   to a coin box's width.
+
+   The colour override is the whole point of this rule: dnd5e dresses buttons inside a
+   currency section differently from buttons in a row, and the ONLY computed difference
+   against the row's Take was `color` (#999 against the row's #cfd2da) plus 2px of shadow
+   blur — enough to read as permanently disabled. Matching them means "greyed out" can go
+   back to meaning what it should, which is `:disabled` below. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet section.currency .lootshelf-take-currency {
+  flex: none;
+  margin-left: 4px;
+  color: var(--color-text-primary, #cfd2da);
+  box-shadow: 0 0 8px rgb(0 0 0 / 15%);
+}
+
+/* An empty chest keeps its Take button in place and greys it, rather than dropping it: the
+   row Take buttons hold their lane whatever the row says, and a control that vanishes
+   reads as "this chest is different" instead of "there is nothing in here". */
+.dnd5e2.sheet.actor.group.lootshelf-sheet section.currency .lootshelf-take-currency:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* dnd5e hides the frame title on actor sheets, since its own header card names the
+   document. Both these sheets replace that card with a slim strip, which left the title
+   bar as a wide empty band; the sheets put their ROLE there instead (see `get title()`).
+   The system's rule uses :where(), so it carries no specificity to fight.
+
+   Pinned rather than left in the header's flex flow: in that flow the title came out 16px
+   below the header's top with a 36px line box, so the text rendered against the BOTTOM
+   edge of a 36px band and read as floating under the bar. The header is already
+   `position: relative`, so anchoring to its top-left and matching its height puts the text
+   in the band. `pointer-events: none` keeps the title from swallowing drags — the header
+   is the window's drag handle. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet > header .window-title {
+  visibility: visible;
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: 36px;
+  line-height: 36px;
+  margin: 0;
+  padding-inline-start: 8px;
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: start;
+  font-size: var(--font-size-13, 13px);
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* A row the shoppers cannot see, shown to the GM so curation is legible at a glance. */
@@ -186,8 +268,35 @@
   margin: 0 0 8px;
 }
 
-/* The one line under the shop name: purse, or pricing for the GM. */
+/* The one line under the name: the shop's purse or pricing, the chest's worth or note. */
 .dnd5e2.sheet.actor.group.lootshelf-sheet .lootshelf-subtitle {
   font-size: var(--font-size-12, 12px);
   opacity: 0.75;
+}
+
+/* The GM edits the chest's note in place, so the input has to sit exactly where the
+   players' read-only line does — same size and opacity, no input chrome to give it away
+   as a field until it is focused. The placeholder carries the auto-summary, which is what
+   players see while the note is blank. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet input.lootshelf-note {
+  width: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  padding: 0;
+  height: auto;
+  line-height: 1.3;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-sheet input.lootshelf-note:focus {
+  opacity: 1;
+  box-shadow: none;
+  outline: none;
+  border-bottom: 1px solid var(--dnd5e-color-gold, currentColor);
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-sheet input.lootshelf-note::placeholder {
+  color: inherit;
+  font-style: italic;
+  opacity: 0.7;
 }

@@ -1,5 +1,10 @@
-{{!-- Loot container header: portrait + name, nothing else. Markup mirrors the dnd5e
-      group sheet header so the system's own styling dresses it. --}}
+{{!-- Loot container header: portrait, name, and one line about the chest. Markup mirrors
+      the dnd5e group sheet header so the system's own styling dresses it, and the subtitle
+      matches the shelf's so the two windows read as the same object.
+
+      The subtitle defaults to what the chest is worth and can be typed over by a GM; see
+      `_prepareContext` in container-sheet.js. The GM's input is NOT a form field — these
+      sheets open un-editable, so it is written straight to the flag on change. --}}
 <header class="sheet-header">
 
     <div class="left">
@@ -17,6 +22,13 @@
             <div class="document-name">{{ document.name }}</div>
             {{/if}}
         </div>
+        {{#if loot.isGM}}
+        <input type="text" class="lootshelf-note lootshelf-subtitle uninput always-interactive"
+               value="{{ loot.note }}" placeholder="{{ loot.summary }}"
+               aria-label="Note shown under the container's name">
+        {{else if loot.subtitle}}
+        <div class="lootshelf-subtitle">{{ loot.subtitle }}</div>
+        {{/if}}
     </div>
 
 </header>

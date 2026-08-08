@@ -355,6 +355,41 @@ const OPS = {
     return { name, quantity: qty };
   },
 
+  /**
+   * Take the coin out of a container the player does NOT own — the currency counterpart
+   * to `takeFromContainer`, and subject to the same narrow rule: flagged loot container on
+   * one end, an actor the caller owns on the other.
+   *
+   * Coin moves DENOMINATION BY DENOMINATION rather than through `addCopper`, which
+   * canonicalises to gp/sp/cp: a chest holding 2 pp should put two platinum in the
+   * player's purse, not twenty gold. Re-denominating someone's coin behind their back is
+   * the same thing `planDeduction` is careful not to do when making change.
+   */
+  async takeCurrencyFromContainer({ containerUuid, actorUuid }, user) {
+    const container = await resolveActor(containerUuid);
+    const to = await resolveActor(actorUuid);
+    if (!container || !to || container === to)
+      throw new Error("Loot Shelf: invalid loot endpoints.");
+    if (!container.flags?.[MODULE_ID]?.container?.enabled)
+      throw new Error("Loot Shelf: that actor is not a loot container.");
+    if (!user?.isGM && !to.testUserPermission(user, "OWNER"))
+      throw new Error("Loot Shelf: you can only loot onto a character you own.");
+
+    const taken = coins(container.system?.currency);
+    const amount = totalCopper(taken);
+    if (amount <= 0) throw new Error(`Loot Shelf: ${container.name} has no coin.`);
+
+    // Credit before emptying, so a failed update never destroys the coin (fail open).
+    const purse = coins(to.system?.currency);
+    for (const k of ASCENDING) purse[k] += taken[k];
+    await to.update({ "system.currency": purse });
+    await container.update({ "system.currency": coins(null) });
+
+    audit(`<strong>${to.name}</strong> took ${formatCopper(amount)} from `
+      + `<strong>${container.name}</strong>.`, user);
+    return { amount };
+  },
+
   async transferItem({ fromUuid: fromId, toUuid: toId, itemId, quantity, move = true }, user) {
     const from = await resolveActor(fromId);
     const to = await resolveActor(toId);

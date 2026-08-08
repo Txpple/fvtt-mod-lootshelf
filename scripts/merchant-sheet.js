@@ -27,6 +27,8 @@ import {
   MODULE_ID, isPhysical, priceInCopper, formatCopper, formatPurse, totalCopper, gmRequest
 } from "./transfer.js";
 
+import { trimSheetChrome } from "./sheets.js";
+
 export { MERCHANT_SHEET_ID } from "./sheets.js";
 
 Hooks.once("init", () => {
@@ -80,6 +82,11 @@ Hooks.once("init", () => {
     tabGroups = { primary: "inventory" };
 
     _filters = { inventory: { name: "", properties: new Set() } };
+
+    /** The role this window plays; see the note in container-sheet.js. */
+    get title() {
+      return "Merchant";
+    }
 
     /** See the long note in container-sheet.js: core chokes on a single-tab dnd5e sheet. */
     _getTabsConfig(group) {
@@ -225,6 +232,12 @@ Hooks.once("init", () => {
       await super._onFirstRender(context, options);
       // Stock a shop by dragging real goods in, not by minting blank rows.
       this.element.querySelector(".create-child")?.remove();
+    }
+
+    /** @inheritDoc */
+    async _onRender(context, options) {
+      await super._onRender(context, options);
+      trimSheetChrome(this.element);
     }
 
     /**

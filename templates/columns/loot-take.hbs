@@ -1,0 +1,11 @@
+{{!-- `always-interactive` is required, not decorative: a looter does not own the chest, so
+      the sheet renders read-only and every control without this class is disabled. What the
+      button does is re-validated GM-side by the transfer kernel's takeFromContainer, so the
+      class grants an affordance, never a permission. --}}
+<div class="item-detail item-lootTake" data-column-id="lootTake">
+    <button type="button" class="lootshelf-action-button always-interactive" data-action="take"
+            aria-label="Take {{ item.name }}">
+        <i class="fa-solid fa-hand-holding" inert></i>
+        <span>Take</span>
+    </button>
+</div>
