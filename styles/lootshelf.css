@@ -199,12 +199,19 @@
    bar as a wide empty band; the sheets put their ROLE there instead (see `get title()`).
    The system's rule uses :where(), so it carries no specificity to fight.
 
-   Pinned rather than left in the header's flex flow: in that flow the title came out 16px
-   below the header's top with a 36px line box, so the text rendered against the BOTTOM
-   edge of a 36px band and read as floating under the bar. The header is already
-   `position: relative`, so anchoring to its top-left and matching its height puts the text
-   in the band. `pointer-events: none` keeps the title from swallowing drags — the header
-   is the window's drag handle. */
+   Foundry core absolutely positions `.window-title` at `inset: 16px 0 7px` — BELOW a 36px
+   header band. That is why the title first rendered against the bar's bottom edge, and why
+   no amount of `align-items` / `align-self` / `margin: auto` moved it: the title is not in
+   the header's flex flow at all, so flex alignment never applied. (dnd5e unsets the inset
+   on its `.titlebar` applications; these sheets are not that.) Re-anchor it to the band's
+   top-left and match the band's height, so line-height centres the text on the same line
+   as the window buttons.
+
+   `pointer-events: none` keeps the title from swallowing drags — the header is the drag
+   handle. The GM's header also carries an edit-mode <slide-toggle> at its start, which the
+   title would otherwise sit underneath; the toggle's box measures out to 42px into the
+   header, so 46px clears it with the header's own 4px gap. Players get no toggle, hence
+   the `:has()`. */
 .dnd5e2.sheet.actor.group.lootshelf-sheet > header .window-title {
   visibility: visible;
   position: absolute;
@@ -213,7 +220,7 @@
   line-height: 36px;
   margin: 0;
   padding-inline-start: 8px;
-  max-width: 50%;
+  max-width: 60%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -221,6 +228,15 @@
   font-size: var(--font-size-13, 13px);
   opacity: 0.6;
   pointer-events: none;
+}
+
+.dnd5e2.sheet.actor.group.lootshelf-sheet > header:has(slide-toggle) .window-title {
+  padding-inline-start: 46px;
+}
+
+/* Core stacks an empty subtitle slot under the title; nothing sets one here. */
+.dnd5e2.sheet.actor.group.lootshelf-sheet > header .window-subtitle {
+  display: none;
 }
 
 /* A row the shoppers cannot see, shown to the GM so curation is legible at a glance. */
