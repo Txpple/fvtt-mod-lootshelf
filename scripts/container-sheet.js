@@ -116,6 +116,16 @@ Hooks.once("init", () => {
       for (const container of context.containers ?? []) {
         delete context.itemContext?.[container.id]?.columns;
       }
+      // Clicking a row in a chest you don't own should OPEN the item to read it, not try
+      // to use it — using needs ownership and fails with a permissions error.
+      if (!this.document.isOwner && !game.user.isGM) {
+        for (const ctx of Object.values(context.itemContext ?? {})) {
+          ctx.clickAction = "view";
+          // Nobody swings a sword while it is still in the chest. Activity buttons would
+          // try to USE the item, which needs ownership and fails the same way.
+          ctx.activities = [];
+        }
+      }
       return context;
     }
 

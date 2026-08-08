@@ -137,6 +137,47 @@ Hooks.once("setup", () => {
   };
 });
 
+// Let players READ the goods on a shelf or in a chest.
+//
+// An embedded item inherits its parent actor's permissions, so an item sitting in an
+// unowned shop or chest fails its sheet's LIMITED view gate and opening it reports
+// insufficient privileges. Being able to read what you are about to buy or carry off is
+// the whole point of the window, so widen the gate for exactly those items — goods whose
+// parent actor carries one of our two role flags — and defer to the original getter for
+// every other item in the world. Read-only either way: `isEditable` still depends on real
+// ownership, so a shopper can look without being able to change anything.
+Hooks.once("setup", () => {
+  const item = globalThis.dnd5e?.applications?.item ?? {};
+  const classes = [item.ItemSheet5e, item.ContainerSheet].filter(c => c?.prototype);
+  if (!classes.length) {
+    console.error(`${MODULE_ID} | dnd5e item sheet classes not found — players will get `
+      + "\"insufficient privileges\" when opening goods in a shop or chest.");
+    return;
+  }
+  const inheritedGetter = (proto, name) => {
+    for (let o = proto; o; o = Object.getPrototypeOf(o)) {
+      const d = Object.getOwnPropertyDescriptor(o, name);
+      if (d?.get) return d.get;
+    }
+    return null;
+  };
+  for (const cls of classes) {
+    const orig = inheritedGetter(cls.prototype, "isVisible");
+    Object.defineProperty(cls.prototype, "isVisible", {
+      configurable: true,
+      get() {
+        try {
+          const parent = this.document?.parent;
+          if (parent instanceof Actor && (isMerchant(parent) || isContainer(parent))) return true;
+        } catch (err) {
+          console.error(`${MODULE_ID} | item visibility check failed`, err);
+        }
+        return orig ? orig.call(this) : true;
+      }
+    });
+  }
+});
+
 // Actor directory context menu: configure (GM) and open shelf. v13 renamed the directory
 // context hook; register both spellings and dedupe, since only one will fire per build.
 function addContextOptions(options) {

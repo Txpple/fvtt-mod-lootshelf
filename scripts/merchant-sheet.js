@@ -181,8 +181,12 @@ Hooks.once("init", () => {
           hidden: !!item.getFlag(MODULE_ID, "hidden"),
           equipped: !!item.system.equipped
         };
-        // A shopper clicking the row should read the item, never "use" it — it isn't theirs.
-        if (!game.user.isGM) ctx.clickAction = "view";
+        // A shopper clicking the row should read the item, never "use" it — it isn't
+        // theirs. Activity buttons would try to use it too, and fail on permissions.
+        if (!game.user.isGM) {
+          ctx.clickAction = "view";
+          ctx.activities = [];
+        }
         // Containers on a shelf are goods like any other; drop dnd5e's capacity-meter
         // column override so the row lines up with everything else (see container-sheet.js).
         delete ctx.columns;
