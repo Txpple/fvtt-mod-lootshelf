@@ -8,6 +8,8 @@
  *      and the system's own drop pipeline; the module defaults container drags to MOVE
  *      instead of copy, clears attuned/equipped on the way in, and adds Take buttons that
  *      route through the kernel so an unowned chest can be looted without ownership.
+ *      A GM can also drag an item from a compendium or the sidebar onto the scene to leave
+ *      it lying there as a container (canvas-drop.js).
  *
  *   2. MERCHANT SHELF (merchant.js) — the one custom window, ApplicationV2 + Handlebars.
  *      Stock with prices, buy and sell-back flows, per-item hide-from-shelf flag. All
@@ -36,6 +38,7 @@
 import { MODULE_ID, gmRequest, priceInCopper, formatCopper } from "./transfer.js";
 import "./container-sheet.js";
 import "./merchant-sheet.js";
+import "./canvas-drop.js";
 import { setContainer, createLootContainer, isContainer } from "./container.js";
 import { setMerchant, createMerchant, openShelf, isMerchant } from "./merchant.js";
 import { configure } from "./config.js";

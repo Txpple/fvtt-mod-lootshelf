@@ -58,6 +58,12 @@ Two features. **That's it.**
   by the owner, and the source of the module's two worst workarounds, a single-writer rule
   to stop GM clients fighting over stale art and a document-reset/redraw dance for core
   #12118. A GM who wants an open-looking chest changes the token art.)*
+  *(Owner-decided 2026-08-08):* a **GM can drag an item from a compendium or the Items
+  sidebar onto the scene** to leave it there as a container — the one Item Piles gesture
+  worth keeping, previously treated as deliberate non-parity. Scoped hard: GM only (players
+  cannot create actors), and SOURCE items only. A drag off a character's sheet is ignored,
+  because copying there would duplicate loot — the exact failure `containerVerdict` blocks
+  and the `asGear()` workaround exists to undo.
   *(v0.2 uplift, owner-decided 2026-08-07):* contents are browsed through a **container
   sheet** — a subclass of dnd5e's `BaseActorSheet` whose parts are a minimal header plus
   the system's own inventory tab (currency row, search/filter controls, sectioned item

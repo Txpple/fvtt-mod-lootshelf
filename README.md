@@ -32,6 +32,11 @@ deliberately no trading, no vaults, and no multi-currency machinery here.
   the shelf to sell. The shelf is the merchant's own sheet, opened without granting any
   ownership, so shop actors never clutter a player's sidebar. Buys and sells run GM-side
   over a plain-socket proxy, so a GM client must be connected.
+- **Drag an item from a compendium or the Items sidebar onto the scene** and it is left
+  lying there: a loot container named and illustrated after the item, holding a copy of it,
+  filed under a "Loot Shelf" folder. GM only. Items dragged off a character's sheet are
+  deliberately left alone — copying one there would duplicate it. Switchable off in module
+  settings.
 - Players double-click a chest to loot it through a dnd5e-native container sheet (the
   system's own inventory tab — currency, search, sectioned item table). Each row has a
   **Take** button and the coin row has its own, so no ownership needs granting; drags out
