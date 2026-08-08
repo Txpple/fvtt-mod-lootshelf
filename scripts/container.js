@@ -206,9 +206,14 @@ Hooks.once("setup", () => {
 /*  Setup API                                         */
 /* -------------------------------------------------- */
 
-/** Flag (or reconfigure) an existing actor as a loot container. */
-export async function setContainer(actor, { enabled = true } = {}) {
+/**
+ * Flag (or reconfigure) an existing actor as a loot container. `ephemeral` marks a chest
+ * that should vanish from the map once players have emptied it — set on containers the
+ * canvas-drop gesture creates, off for anything a GM placed deliberately.
+ */
+export async function setContainer(actor, { enabled = true, ephemeral } = {}) {
   const cfg = { ...(actor.getFlag(MODULE_ID, "container") ?? {}), enabled };
+  if (ephemeral !== undefined) cfg.ephemeral = !!ephemeral;
   const flags = { ...(actor.flags?.[MODULE_ID] ?? {}), container: cfg };
   await actor.update({
     [`flags.${MODULE_ID}.container`]: cfg,
@@ -220,10 +225,12 @@ export async function setContainer(actor, { enabled = true } = {}) {
 /**
  * Create a ready-to-place loot container actor. `items` accepts Item uuids (compendium or
  * world) and/or plain item data. Ownership stays at the world default unless
- * `defaultOwnership` (a CONST.DOCUMENT_OWNERSHIP_LEVELS value) is passed.
+ * `defaultOwnership` (a CONST.DOCUMENT_OWNERSHIP_LEVELS value) is passed. `ephemeral`
+ * marks the chest to disappear from the map once players empty it — what the canvas-drop
+ * gesture uses, and off by default so a deliberately placed chest stays put.
  */
 export async function createLootContainer({
-  name = "Loot Chest", img, items = [], folder = null, defaultOwnership
+  name = "Loot Chest", img, items = [], folder = null, defaultOwnership, ephemeral = false
 } = {}) {
   const art = img ?? "icons/svg/item-bag.svg";
   const data = {
@@ -239,7 +246,7 @@ export async function createLootContainer({
     },
     flags: {
       core: { sheetClass: CONTAINER_SHEET_ID },
-      [MODULE_ID]: { container: { enabled: true } }
+      [MODULE_ID]: { container: { enabled: true, ephemeral: !!ephemeral } }
     }
   };
   if (defaultOwnership !== undefined) data.ownership = { default: defaultOwnership };

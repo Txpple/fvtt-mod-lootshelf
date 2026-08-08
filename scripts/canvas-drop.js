@@ -101,7 +101,11 @@ async function spawnLoot(scene, data) {
     name: item.name,
     img: item.img,
     items: [item.toObject()],
-    folder: await lootFolder()
+    folder: await lootFolder(),
+    // An item dropped on the floor is scenery that exists to be picked up, so once players
+    // have taken everything the token removes itself (transfer.js). A chest the GM placed
+    // and furnished is a fixture and stays — hence the flag rather than a blanket rule.
+    ephemeral: true
   });
 
   const tokenDoc = await actor.getTokenDocument();

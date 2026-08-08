@@ -27,7 +27,7 @@ import {
   MODULE_ID, isPhysical, priceInCopper, formatCopper, formatPurse, totalCopper, gmRequest
 } from "./transfer.js";
 
-import { trimSheetChrome } from "./sheets.js";
+import { trimSheetChrome, canReachActor, warnOutOfReach } from "./sheets.js";
 
 export { MERCHANT_SHEET_ID } from "./sheets.js";
 
@@ -264,6 +264,9 @@ Hooks.once("init", () => {
 
     /** Fail open: a broken shelf must never leave a shopkeeper that does nothing. */
     async render(options, _options) {
+      // You have to walk up to the counter. See the note in container-sheet.js for why
+      // this is a render gate rather than a Token#_canView gate.
+      if (!this.rendered && !canReachActor(this.actor)) return warnOutOfReach(this.actor), this;
       try {
         return await super.render(options, _options);
       } catch (err) {

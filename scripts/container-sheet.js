@@ -27,7 +27,7 @@
 import {
   MODULE_ID, isPhysical, priceInCopper, formatCopper, totalCopper, gmRequest
 } from "./transfer.js";
-import { trimSheetChrome } from "./sheets.js";
+import { trimSheetChrome, canReachActor, warnOutOfReach } from "./sheets.js";
 
 export { CONTAINER_SHEET_ID } from "./sheets.js";
 
@@ -350,6 +350,12 @@ Hooks.once("init", () => {
      * actor to the system's own sheet so the GM can still get at the loot.
      */
     async render(options, _options) {
+      // Standing next to it is the price of opening it. Checked here rather than in
+      // Token#_canView (which merchant.js widens) because _canView gates the double-click
+      // EVENT: refusing there means the click does nothing at all, with no way for the
+      // player to learn why. Gating the render costs one notification and covers every
+      // entry point — token, macro, API — instead of only the click.
+      if (!this.rendered && !canReachActor(this.actor)) return warnOutOfReach(this.actor), this;
       try {
         return await super.render(options, _options);
       } catch (err) {

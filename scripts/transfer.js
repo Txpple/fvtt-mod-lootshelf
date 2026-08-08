@@ -249,6 +249,52 @@ function canReceive(actor, user) {
     && !!actor.system?.members?.some(m => m.actor?.testUserPermission(user, "OWNER"));
 }
 
+/** Nothing physical left and no coin — the chest has been cleaned out. */
+function isEmptied(actor) {
+  const hasLoot = actor.items.some(i => isPhysical(i) && (i.system.quantity ?? 1) > 0);
+  return !hasLoot && totalCopper(actor.system?.currency) <= 0;
+}
+
+/**
+ * Take a looted-out container off the map — but only one that was never meant to persist.
+ *
+ * Gated on `container.ephemeral`, which is set by the canvas-drop gesture (canvas-drop.js)
+ * and by `createLootContainer({ephemeral: true})`. A dropped-on-the-floor item is scenery
+ * that exists to be picked up, so an empty one is litter; a chest the GM placed and
+ * furnished is a fixture, and making it vanish the moment it is emptied would delete their
+ * work. A GM can flip the flag either way from the config dialog.
+ *
+ * Called only from the take ops, which additionally scopes this to PLAYERS emptying a
+ * chest. A hook on item deletion would also fire when the GM clears one to re-stock it,
+ * and having the token vanish mid-restock is a worse bug than the clutter this fixes.
+ *
+ * Coin counts as contents: a chest holding 50 gp and no items is not empty, and deleting
+ * it would destroy the money.
+ *
+ * `getDependentTokens` also returns EPHEMERAL TokenDocuments (id: null — byproducts of
+ * getTokenDocument and friends); those have no scene to be deleted from and throw if you
+ * try. Only persisted, scene-embedded tokens count. Deletes are grouped per scene so a
+ * container placed several times costs one call per scene rather than one per token.
+ */
+async function removeEmptiedContainer(container) {
+  try {
+    if (!container.getFlag(MODULE_ID, "container")?.ephemeral) return false;
+    if (!isEmptied(container)) return false;
+    const tokens = container.isToken ? [container.token] : container.getDependentTokens();
+    const byScene = new Map();
+    for (const token of tokens) {
+      if (!token?.id || !token.parent) continue;
+      if (!byScene.has(token.parent)) byScene.set(token.parent, []);
+      byScene.get(token.parent).push(token.id);
+    }
+    for (const [scene, ids] of byScene) await scene.deleteEmbeddedDocuments("Token", ids);
+    return byScene.size > 0;
+  } catch (err) {
+    console.error(`${MODULE_ID} | removing the emptied container failed`, err);
+    return false; // the loot already changed hands; a stuck token is not worth throwing over
+  }
+}
+
 /** Whisper an audit line to the GMs and the acting user. */
 function audit(content, user) {
   const whisper = new Set(game.users.filter(u => u.isGM).map(u => u.id));
@@ -370,9 +416,11 @@ const OPS = {
     const name = item.name;
     await grantItem(to, item, qty);
     await decrementItem(item, qty);
+    const emptied = await removeEmptiedContainer(container);
     audit(`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
-      + `<strong>${container.name}</strong>.`, user);
-    return { name, quantity: qty };
+      + `<strong>${container.name}</strong>.`
+      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user);
+    return { name, quantity: qty, emptied };
   },
 
   /**
@@ -405,9 +453,11 @@ const OPS = {
     await to.update({ "system.currency": purse });
     await container.update({ "system.currency": coins(null) });
 
+    const emptied = await removeEmptiedContainer(container);
     audit(`<strong>${to.name}</strong> took ${formatCopper(amount)} from `
-      + `<strong>${container.name}</strong>.`, user);
-    return { amount };
+      + `<strong>${container.name}</strong>.`
+      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user);
+    return { amount, emptied };
   },
 
   async transferItem({ fromUuid: fromId, toUuid: toId, itemId, quantity, move = true }, user) {

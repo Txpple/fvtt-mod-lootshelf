@@ -62,6 +62,13 @@ export async function configure(actor) {
       { value: "container", label: "Loot container" },
       { value: "merchant", label: "Merchant shelf" }
     ], role, "Players double-click the token either way: a chest to take from, a shop to buy from.")}
+    <fieldset data-container-fields>
+      <legend>Loot container</legend>
+      ${checkboxRow("ephemeral", "Disappears when emptied", c.ephemeral,
+        "Once players have taken everything — items and coin — the token is removed from "
+        + "the map. On by default for containers made by dropping an item on the canvas, "
+        + "off for chests you place yourself.")}
+    </fieldset>
     <fieldset data-merchant-fields>
       <legend>Merchant pricing</legend>
       ${numberRow("priceModifier", "Price modifier", m.priceModifier ?? 1,
@@ -76,14 +83,15 @@ export async function configure(actor) {
     window: { title: `Loot Shelf — ${actor.name}`, icon: "fa-solid fa-box-open" },
     position: { width: 480 },
     content,
-    // A chest has no settings of its own now that the art states are gone, so the pricing
-    // block is the only thing below the radio — show it only when it means something.
+    // Each role's settings only exist for that role, so show one block or the other —
+    // and neither when Loot Shelf is switched off for this actor.
     render: (event, dialog) => {
       const form = dialog.element.querySelector("form") ?? dialog.element;
       const sync = () => {
         const on = !!form.elements.lsEnabled?.checked;
         const isMerchant = form.elements.role?.value === "merchant";
         form.querySelector("[data-merchant-fields]")?.toggleAttribute("hidden", !(on && isMerchant));
+        form.querySelector("[data-container-fields]")?.toggleAttribute("hidden", !(on && !isMerchant));
         for (const input of form.querySelectorAll("[data-role-choice] input")) input.disabled = !on;
       };
       form.addEventListener("change", sync);
@@ -112,7 +120,10 @@ export async function configure(actor) {
       sellModifier: num(result.sellModifier, 0.5),
       infiniteStock: !!result.infiniteStock
     },
-    container: { enabled: on && picked === "container" }
+    container: {
+      enabled: on && picked === "container",
+      ephemeral: !!result.ephemeral
+    }
   };
 
   // Flag updates MERGE, so the retired art keys would linger on any actor configured
