@@ -227,6 +227,28 @@ Hooks.once("init", () => {
       this.element.querySelector(".create-child")?.remove();
     }
 
+    /**
+     * Shoppers buy; they do not help themselves. Rows on a shelf are draggable like any
+     * inventory row, and dragging one onto your own sheet created it there outright — the
+     * goods never left the shop and no coin changed hands. Blocking the drag at its source
+     * closes that, and the drop side is guarded too (merchant.js) so a drag begun some
+     * other way still cannot land.
+     */
+    _canDragStart(selector) {
+      if (!game.user.isGM) return false;
+      return super._canDragStart(selector);
+    }
+
+    /**
+     * The counterpart: shoppers must be able to drop goods ONTO the shelf to sell them.
+     * The system ties dropping to editability, and a shopper cannot edit a shopkeeper they
+     * do not own, so a sale drop was rejected before _onDropItem ever saw it. Allow the
+     * drop and judge it ourselves — the sale runs GM-side through the transfer kernel.
+     */
+    _canDragDrop(selector) {
+      return true;
+    }
+
     /** Fail open: a broken shelf must never leave a shopkeeper that does nothing. */
     async render(options, _options) {
       try {

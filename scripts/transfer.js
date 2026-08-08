@@ -290,11 +290,12 @@ const OPS = {
     const sellMod = Number.isFinite(+cfg.sellModifier) ? +cfg.sellModifier : 0.5;
     const gain = Math.floor(priceInCopper(item) * sellMod) * qty;
 
+    // A shop's own purse is deliberately NOT a gate (owner's call): a sale never fails for
+    // want of merchant coin. Deduct when the shopkeeper can cover it so finite shops still
+    // drain, and simply skip the deduction when they can't rather than refusing the trade
+    // or pushing their purse negative. The seller is paid either way.
     let merchantAfter = null;
-    if (!cfg.infiniteStock && gain > 0) {
-      merchantAfter = planDeduction(merchant.system.currency, gain);
-      if (!merchantAfter) throw new Error(`${merchant.name} can't afford ${formatCopper(gain)}.`);
-    }
+    if (!cfg.infiniteStock && gain > 0) merchantAfter = planDeduction(merchant.system.currency, gain);
 
     const name = item.name;
     await grantItem(merchant, item, qty);

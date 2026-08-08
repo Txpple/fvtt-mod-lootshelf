@@ -137,6 +137,38 @@ Hooks.once("setup", () => {
   };
 });
 
+// Goods only leave a shop by being bought.
+//
+// The shelf blocks the drag at its source, but that is a UI affordance; this is the drop
+// side, so a drag begun some other way still cannot deposit shop stock on a character.
+// Chains with the container wrap in container.js — both defer to the original.
+Hooks.once("setup", () => {
+  const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
+  const orig = Base?.prototype?._onDropCreateItems;
+  if (!orig) {
+    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropCreateItems not found — `
+      + "players may be able to drag goods out of a shop without paying.");
+    return;
+  }
+  Base.prototype._onDropCreateItems = async function (event, items, behavior) {
+    try {
+      if (!game.user.isGM) {
+        const fromShop = (items ?? []).filter(i =>
+          (i instanceof Item) && isMerchant(i.parent) && (i.parent !== this.inventorySource));
+        if (fromShop.length) {
+          ui.notifications.warn(
+            "Loot Shelf: goods have to be bought from the shelf, not carried off.");
+          items = items.filter(i => !fromShop.includes(i));
+          if (!items.length) return [];
+        }
+      }
+    } catch (err) {
+      console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+    }
+    return orig.call(this, event, items, behavior);
+  };
+});
+
 // Let players READ the goods on a shelf or in a chest.
 //
 // An embedded item inherits its parent actor's permissions, so an item sitting in an
