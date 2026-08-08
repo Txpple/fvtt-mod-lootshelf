@@ -42,6 +42,12 @@ Hooks.once("init", () => {
     static DEFAULT_OPTIONS = {
       classes: ["group", "lootshelf-sheet", "lootshelf-container"],
       position: { width: 580, height: 640 },
+      // Anyone may look inside a chest. Requiring ownership meant the GM had to hand out
+      // permissions per chest, which also drops every chest into that player's sidebar —
+      // the same objection that shaped the merchant shelf. Taking things out is the
+      // guarded step, not looking: an unowned take is re-validated GM-side by the
+      // transfer kernel's takeFromContainer (see container.js).
+      viewPermission: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE,
       // No title-bar icon: dnd5e sheets hide the window title, so an icon just floats
       // alone in the middle of the header bar with nothing to label.
       window: { icon: "" }

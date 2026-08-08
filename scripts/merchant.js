@@ -25,6 +25,7 @@
 
 import { MODULE_ID, stockItems } from "./transfer.js";
 import { MERCHANT_SHEET_ID, sheetClassUpdate } from "./sheets.js";
+import { isContainer } from "./container.js";
 import { configure } from "./config.js";
 
 /* -------------------------------------------------- */
@@ -105,27 +106,34 @@ function refreshBuyerPurse(actor) {
 }
 Hooks.on("updateActor", actor => refreshBuyerPurse(actor));
 
-// Players double-click a merchant token they don't own -> shelf instead of the (refused)
-// sheet. Owners and GMs keep the stock double-click so they can edit the merchant.
+// Let players double-click a shop or a chest they have no permission on.
+//
+// This is the reason the v0.1 "double-click a merchant token" flow never actually worked:
+// core gates the event itself, not just the sheet. The interaction manager wires
+// `clickLeft2: this._canView`, and Token#_canView ends with
+//
+//   return this.actor?.testUserPermission(user, "LIMITED");
+//
+// so for a player with no permission the double-click NEVER FIRES — any handler wrapped
+// around _onClickLeft2 is dead code. Opening up the sheets' viewPermission is necessary
+// but not sufficient; the click has to be allowed to reach them. Widen _canView for our
+// two flagged roles only, and let core's own handler render the sheet as it always does.
 Hooks.once("setup", () => {
   const proto = CONFIG.Token?.objectClass?.prototype;
-  const orig = proto?._onClickLeft2;
+  const orig = proto?._canView;
   if (!orig) {
-    console.error(`${MODULE_ID} | Token#_onClickLeft2 not found — `
-      + "merchant double-click disabled; use the actor directory context menu instead.");
+    console.error(`${MODULE_ID} | Token#_canView not found — players will not be able to `
+      + "open shops or chests they lack permission on; grant ownership as a workaround.");
     return;
   }
-  proto._onClickLeft2 = function (event) {
+  proto._canView = function (user, event) {
     try {
       const actor = this.actor;
-      if (isMerchant(actor) && !actor.isOwner && !game.user.isGM) {
-        openShelf(actor);
-        return;
-      }
+      if (isMerchant(actor) || isContainer(actor)) return true;
     } catch (err) {
-      console.error(`${MODULE_ID} | merchant double-click check failed`, err);
+      console.error(`${MODULE_ID} | token view check failed`, err);
     }
-    return orig.call(this, event);
+    return orig.call(this, user, event);
   };
 });
 

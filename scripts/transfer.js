@@ -308,6 +308,38 @@ const OPS = {
     return { name, quantity: qty, gain };
   },
 
+  /**
+   * Take loot out of a container the player does NOT own.
+   *
+   * `transferItem` deliberately demands ownership of both endpoints — it is the general
+   * primitive and should stay strict. Looting is the case that cannot satisfy it: a chest
+   * on the floor belongs to nobody, and handing every player OWNER on every chest would
+   * put each one in their sidebar (the same objection that shaped the merchant shelf).
+   * So the rule here is narrower and checked GM-side: the source must be a flagged loot
+   * container, and the caller must own only the actor receiving the goods.
+   */
+  async takeFromContainer({ containerUuid, actorUuid, itemId, quantity }, user) {
+    const container = await resolveActor(containerUuid);
+    const to = await resolveActor(actorUuid);
+    if (!container || !to || container === to)
+      throw new Error("Loot Shelf: invalid loot endpoints.");
+    if (!container.flags?.[MODULE_ID]?.container?.enabled)
+      throw new Error("Loot Shelf: that actor is not a loot container.");
+    if (!user?.isGM && !to.testUserPermission(user, "OWNER"))
+      throw new Error("Loot Shelf: you can only loot onto a character you own.");
+    const item = container.items.get(itemId);
+    if (!item || !isPhysical(item))
+      throw new Error("Loot Shelf: no such physical item in the container.");
+    const stock = Math.max(1, Math.floor(item.system.quantity ?? 1));
+    const qty = Math.min(Math.max(1, Math.floor(quantity ?? stock)), stock);
+    const name = item.name;
+    await grantItem(to, item, qty);
+    await decrementItem(item, qty);
+    audit(`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
+      + `<strong>${container.name}</strong>.`, user);
+    return { name, quantity: qty };
+  },
+
   async transferItem({ fromUuid: fromId, toUuid: toId, itemId, quantity, move = true }, user) {
     const from = await resolveActor(fromId);
     const to = await resolveActor(toId);

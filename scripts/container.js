@@ -25,7 +25,7 @@
  *      lives in transfer.js), so whatever is taken out is already clean.
  */
 
-import { MODULE_ID, isPhysical, totalCopper, stockItems } from "./transfer.js";
+import { MODULE_ID, isPhysical, totalCopper, stockItems, gmRequest } from "./transfer.js";
 import { CONTAINER_SHEET_ID, sheetClassUpdate, sheetUnset } from "./sheets.js";
 
 /* -------------------------------------------------- */
@@ -182,12 +182,16 @@ function containerVerdict(sheet, event, data) {
   if (!(target instanceof Actor) || target === source) return null;
   if (!isContainer(source) && !isContainer(target)) return null;
 
+  // Taking loot OUT is always a move. When the chest isn't owned the drop can't run
+  // locally — a player has no right to delete from it — so the wrap below routes it
+  // through the GM proxy instead. Either way the answer here is "move", never "copy".
+  if (isContainer(source) && target.isOwner) return "move";
   if (source.isOwner && target.isOwner) return "move";
 
   const unowned = source.isOwner ? target : source;
   warnThrottled(`${data.uuid}->${target.uuid}`,
     `Loot Shelf: you don't own ${unowned.name}, so this drag would leave a duplicate behind `
-    + "and was blocked. Ask the GM for ownership of the container, or hold Ctrl to copy on purpose.");
+    + "and was blocked. Ask the GM for ownership, or hold Ctrl to copy on purpose.");
   return "block";
 }
 
@@ -236,6 +240,29 @@ function installContainerMoveFix(Base) {
       console.error(`${MODULE_ID} | container move check failed`, err);
     }
     if (!sources.length) return orig.call(this, event, items, behavior);
+
+    // Looting a chest nobody owns: the local client may create the goods on its own
+    // character but has no right to remove them from the container, so the whole move is
+    // handed to the GM proxy, which re-checks that the source really is a loot container
+    // and that the caller owns the destination. Doing BOTH halves GM-side keeps it atomic
+    // — a local create plus a remote delete could half-fail and duplicate the loot.
+    const unowned = sources.filter(i => !i.parent.isOwner);
+    if (unowned.length) {
+      for (const item of unowned) {
+        try {
+          const res = await gmRequest("takeFromContainer", {
+            containerUuid: item.parent.uuid,
+            actorUuid: this.inventorySource.uuid,
+            itemId: item.id,
+            quantity: item.system.quantity ?? 1
+          });
+          ui.notifications.info(`Took ${res.quantity} × ${res.name}.`);
+        } catch (err) {
+          ui.notifications.warn(err.message);
+        }
+      }
+      return [];
+    }
 
     const created = await orig.call(this, event, items, "copy");
     for (const source of sources) {
