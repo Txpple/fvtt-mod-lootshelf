@@ -50,7 +50,8 @@ https://github.com/Txpple/fvtt-mod-lootshelf/releases/latest/download/module.jso
 - **Stand next to it.** Players need a token beside the shop or chest to open it, diagonals
   included. GMs are never restricted, and the check yields whenever distance cannot honestly
   be measured — no canvas, or no token on either side.
-- Buys, sells and takes are announced in chat so the whole table shares one loot log.
+- Buys, sells and takes are announced in chat so the table shares one loot log — publicly by
+  default, or to the participants and the DMs only (see **Settings**).
 
 Every mutation is re-validated GM-side by the transfer kernel — ownership, stock, and above
 all the price. A client never gets to name its own number. A GM client must be connected.
@@ -61,6 +62,21 @@ all the price. A client never gets to name its own number. A GM client must be c
 | --- | --- | --- |
 | Players must stand next to a shop or chest | on | Turn off for theatre-of-the-mind play. |
 | Drop items on the map to make loot | on | Turn off to restore stock canvas-drop behavior. |
+| Receipts | broadcast to the server | Who reads the audit line — see below. |
+
+**Receipt Settings** is a choice of two, and Party Stash offers the same one, so a table can
+set one policy across both modules:
+
+- **Broadcast receipts to the server** *(default)* — every buy, sale and haul is posted to
+  the chat log for the whole table to read.
+- **Receipts to the transaction participants and the DMs** — whispered to the players on
+  either side of the transaction (whoever bought, sold, was paid, or took the loot) and to
+  the DMs. **Assistant DMs count as DMs here** and see every receipt.
+
+The merchant or chest at the other end is deliberately not counted when working out who to
+whisper to: a loot container can carry default player ownership, which would turn every
+whisper straight back into a broadcast. A party stash *is* counted when a sale is paid into
+it — the party's money moved.
 
 Per container, in **Loot Shelf: Configure**, *Disappears when emptied* removes the token
 from the map once players have taken everything — items and coin. On by default for

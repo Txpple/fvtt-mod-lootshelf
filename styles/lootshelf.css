@@ -316,3 +316,25 @@
   font-style: italic;
   opacity: 0.7;
 }
+
+/* Receipt Settings — the delivery choice on the module's settings sheet, rendered as a
+   radio group (receipts.js). It sits inside core's `.form-fields`, which is a flex ROW,
+   so the block has to claim the full width and stack itself. Each consequence note is
+   indented under its option so a note reads as belonging to the choice above it. */
+.lootshelf-receipt-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.lootshelf-receipt-modes label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+}
+
+.lootshelf-receipt-modes p.hint {
+  margin: 0 0 6px 22px;
+}

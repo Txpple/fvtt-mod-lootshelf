@@ -295,22 +295,105 @@ async function removeEmptiedContainer(container) {
   }
 }
 
+/* -------------------------------------------------- */
+/*  Receipts — the audit line and who reads it        */
+/* -------------------------------------------------- */
+
+export const RECEIPT_SETTING = "receiptVisibility";
+
 /**
- * Post an audit line to the whole table.
+ * The two delivery policies, in the order the settings sheet reads them (receipts.js turns
+ * this into a radio group; the labels double as the `choices` of the stored setting).
+ */
+export const RECEIPT_MODES = [
+  {
+    value: "public",
+    label: "Broadcast receipts to the server",
+    note: "Every buy, sale and haul is posted to the chat log for the whole table to read."
+  },
+  {
+    value: "participants",
+    label: "Receipts to the transaction participants and the DMs",
+    note: "Whispered to the players on either side of the transaction — whoever bought, sold, "
+      + "was paid, or took the loot — and to the DMs. Assistant DMs count as DMs here and see "
+      + "every receipt."
+  }
+];
+
+Hooks.once("init", () => {
+  game.settings.register(MODULE_ID, RECEIPT_SETTING, {
+    name: "Receipts",
+    hint: "Who reads the audit line for a purchase, a sale, or loot taken from a chest.",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "public",
+    choices: Object.fromEntries(RECEIPT_MODES.map(m => [m.value, m.label]))
+  });
+});
+
+/**
+ * The whisper list for a receipt, or null to post it to the whole table.
+ *
+ * "The DMs" means every user with the ASSISTANT role or above — what `User#isGM` answers and
+ * `getWhisperRecipients("GM")` resolves — so an assistant DM is on every receipt. The setting
+ * hint says so rather than leaving a co-DM to discover it by missing one.
+ *
+ * PARTICIPANTS are the PERSONAL side of the transaction: the buyer, the seller, whoever the
+ * proceeds were paid to, whoever the loot went to — plus the acting user, who may be a GM
+ * moving goods on a player's behalf. The SHARED vessel at the other end (the merchant, the
+ * chest) is deliberately never consulted for recipients: a loot container can carry default
+ * player ownership, which would quietly turn every whisper back into a broadcast. A party
+ * stash CAN be a participant — sell-to-party routes coin there — and everyone who owns that
+ * group actor is a genuine party to it, because the party's money moved.
+ *
+ * @param {User} [user]             The acting user.
+ * @param {Actor[]} [participants]  The personal-side actors in the transaction.
+ * @returns {string[]|null}         User ids to whisper to, or null for a public message.
+ */
+function receiptWhisper(user, participants = []) {
+  let mode = "public";
+  try {
+    mode = game.settings.get(MODULE_ID, RECEIPT_SETTING);
+  } catch {
+    return null; // not registered yet — a public line beats a lost one
+  }
+  if (mode !== "participants") return null;
+
+  const ids = new Set(ChatMessage.implementation.getWhisperRecipients("GM").map(u => u.id));
+  if (user?.id) ids.add(user.id);
+  for (const actor of participants) {
+    if (!(actor instanceof Actor)) continue;
+    for (const u of game.users) {
+      if (!ids.has(u.id) && actor.testUserPermission(u, "OWNER")) ids.add(u.id);
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * Post an audit line.
  *
  * These were whispered to the GMs and the acting player, which made every buy, sale and
  * take invisible to everyone else — and a shared loot log is the point: it is what settles
- * "who picked up the potion?" without anyone having to remember. Public now, by the
- * owner's call on 2026-08-08.
+ * "who picked up the potion?" without anyone having to remember. Public by the owner's call
+ * on 2026-08-08, and since v1.2 that is the DEFAULT rather than the only option — the
+ * Receipt Settings above put the choice back in the GM's hands.
  *
  * Authored as the acting user rather than as whichever GM client happened to handle the
  * socket request, so the line sits under the right person in chat. The speaker alias keeps
  * it visibly a Loot Shelf message rather than something their character said.
+ *
+ * @param {string} content          The line, already formatted.
+ * @param {User} [user]             The acting user.
+ * @param {Actor[]} [participants]  The personal-side actors in the transaction.
  */
-function audit(content, user) {
+function audit(content, user, participants = []) {
+  const whisper = receiptWhisper(user, participants);
   ChatMessage.implementation.create({
     content,
     ...(user ? { author: user.id } : {}),
+    ...(whisper ? { whisper } : {}),
     speaker: { alias: "Loot Shelf" }
   }).catch(err => console.error(`${MODULE_ID} | audit message failed`, err));
 }
@@ -353,7 +436,7 @@ const OPS = {
       if (cost > 0) await merchant.update({ "system.currency": addCopper(merchant.system.currency, cost) });
     }
     audit(`<strong>${buyer.name}</strong> bought ${qty} × <em>${name}</em> from `
-      + `<strong>${merchant.name}</strong> for ${formatCopper(cost)}.`, user);
+      + `<strong>${merchant.name}</strong> for ${formatCopper(cost)}.`, user, [buyer]);
     return { name, quantity: qty, cost };
   },
 
@@ -407,7 +490,8 @@ const OPS = {
     }
     audit(`<strong>${seller.name}</strong> sold ${qty} × <em>${name}</em> to `
       + `<strong>${merchant.name}</strong> for ${formatCopper(gain)}`
-      + (payee !== seller ? `, paid into <strong>${payee.name}</strong>'s purse.` : "."), user);
+      + (payee !== seller ? `, paid into <strong>${payee.name}</strong>'s purse.` : "."),
+      user, [seller, payee]);
     return { name, quantity: qty, gain, payee: payee.name };
   },
 
@@ -441,7 +525,7 @@ const OPS = {
     const emptied = await removeEmptiedContainer(container);
     audit(`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
       + `<strong>${container.name}</strong>.`
-      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user);
+      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user, [to]);
     return { name, quantity: qty, emptied };
   },
 
@@ -478,7 +562,7 @@ const OPS = {
     const emptied = await removeEmptiedContainer(container);
     audit(`<strong>${to.name}</strong> took ${formatCopper(amount)} from `
       + `<strong>${container.name}</strong>.`
-      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user);
+      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user, [to]);
     return { amount, emptied };
   },
 
