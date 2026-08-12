@@ -357,7 +357,7 @@ const OPS = {
     return { name, quantity: qty, cost };
   },
 
-  async sell({ merchantUuid, sellerUuid, itemId, quantity = 1 }, user) {
+  async sell({ merchantUuid, sellerUuid, itemId, quantity = 1, payeeUuid = null }, user) {
     const merchant = await resolveActor(merchantUuid);
     const cfg = merchant?.getFlag(MODULE_ID, "merchant");
     if (!cfg?.enabled) throw new Error("Loot Shelf: that actor is not a merchant.");
@@ -367,6 +367,18 @@ const OPS = {
       throw new Error(`Loot Shelf: you don't own ${seller.name}.`);
     const item = seller.items.get(itemId);
     if (!item || !isPhysical(item)) throw new Error("Loot Shelf: that item can't be sold.");
+
+    // Where the proceeds go: the seller's own purse unless the request routes them
+    // elsewhere — the party-stash case, judged by the same membership rule as looting
+    // (`canReceive`), so a seller can bank a sale with their group without owning the
+    // group actor itself.
+    let payee = seller;
+    if (payeeUuid) {
+      payee = await resolveActor(payeeUuid);
+      if (!payee || payee === merchant) throw new Error("Loot Shelf: no valid payee.");
+      if (!canReceive(payee, user))
+        throw new Error(`Loot Shelf: you can't route coin to ${payee.name}.`);
+    }
 
     const stock = Math.max(1, Math.floor(item.system.quantity ?? 1));
     const qty = Math.min(Math.max(1, Math.floor(quantity)), stock);
@@ -390,12 +402,13 @@ const OPS = {
     await grantItem(merchant, item, qty);
     await decrementItem(item, qty);
     if (gain > 0) {
-      await seller.update({ "system.currency": addCopper(seller.system.currency, gain) });
+      await payee.update({ "system.currency": addCopper(payee.system.currency, gain) });
       if (merchantAfter) await merchant.update({ "system.currency": merchantAfter });
     }
     audit(`<strong>${seller.name}</strong> sold ${qty} × <em>${name}</em> to `
-      + `<strong>${merchant.name}</strong> for ${formatCopper(gain)}.`, user);
-    return { name, quantity: qty, gain };
+      + `<strong>${merchant.name}</strong> for ${formatCopper(gain)}`
+      + (payee !== seller ? `, paid into <strong>${payee.name}</strong>'s purse.` : "."), user);
+    return { name, quantity: qty, gain, payee: payee.name };
   },
 
   /**

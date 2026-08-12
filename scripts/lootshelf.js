@@ -31,7 +31,7 @@
  *   await api.setContainer(actor, { enabled });
  *   api.openShelf(actor);        api.configure(actor);      // the GM dialog
  *   await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
- *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity });
+ *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
  *   await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
  */
 

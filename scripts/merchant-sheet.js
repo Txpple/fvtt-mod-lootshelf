@@ -381,30 +381,44 @@ Hooks.once("init", () => {
           + `<input type="number" name="qty" value="1" min="1" max="${max}" autofocus>`
           + `</div><p class="hint">Up to ${max}.</p></div>`
         : "";
+      // Where the proceeds can go: the seller, then any dnd5e group they belong to — the
+      // same destinations looting offers (container-sheet.js), because banking a sale with
+      // the party is the same act as banking the loot would have been. The kernel
+      // re-validates the payee on the same membership rule, so nothing here is trusted.
+      const payees = [seller, ...game.actors.filter(a =>
+        a.type === "group" && a.system?.members?.some(m => m.actor === seller))];
+      const solo = payees.length === 1;
+      const buttons = payees.map((payee, i) => ({
+        action: `sell${i}`,
+        label: payee === seller ? (solo ? "Sell" : `Pay ${seller.name}`) : `Pay ${payee.name}`,
+        icon: payee === seller ? "fa-solid fa-coins" : "fa-solid fa-users",
+        default: i === 0,
+        callback: (ev, button) => ({
+          payeeUuid: payee.uuid,
+          qty: Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || 1)))
+        })
+      }));
+      buttons.push({ action: "cancel", label: "Cancel" });
       const result = await foundry.applications.api.DialogV2.wait({
         classes: ["lootshelf-dialog"],
         window: { title: `Sell to ${this.actor.name}` },
         content: `<p>${esc(this.actor.name)} offers <strong>${formatCopper(unit)}</strong>`
           + ` each for ${esc(item.name)}.</p>${limitNote}${qtyField}`,
-        buttons: [
-          {
-            action: "sell", label: "Sell", icon: "fa-solid fa-coins", default: true,
-            callback: (ev, button) =>
-              Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || 1)))
-          },
-          { action: "cancel", label: "Cancel" }
-        ],
+        buttons,
         rejectClose: false
       });
-      if (result == null || result === "cancel") return;
+      if (!result || typeof result !== "object") return;
       try {
         const res = await gmRequest("sell", {
           merchantUuid: this.actor.uuid,
           sellerUuid: seller.uuid,
           itemId: item.id,
-          quantity: Number(result) || 1
+          quantity: result.qty || 1,
+          payeeUuid: result.payeeUuid
         });
-        ui.notifications.info(`Sold ${res.quantity} × ${res.name} for ${formatCopper(res.gain)}.`);
+        const paidTo = payees.find(p => p.uuid === result.payeeUuid);
+        ui.notifications.info(`Sold ${res.quantity} × ${res.name} for ${formatCopper(res.gain)}`
+          + (paidTo && paidTo !== seller ? ` — paid into ${paidTo.name}'s purse.` : "."));
       } catch (err) {
         ui.notifications.warn(err.message);
       }

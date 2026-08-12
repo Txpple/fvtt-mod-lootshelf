@@ -45,7 +45,8 @@ https://github.com/Txpple/fvtt-mod-lootshelf/releases/latest/download/module.jso
 - **Take into the party.** If the looter belongs to a dnd5e group actor, Take offers that
   party's stash as a destination alongside their character.
 - **Double-click a shop** to browse and buy, or drag their own goods onto the shelf to sell
-  them back. A finite shop can only buy what its purse can cover.
+  them back. A finite shop can only buy what its purse can cover. If the seller belongs to a
+  dnd5e group actor, the sale offers to pay the proceeds into that party's purse instead.
 - **Stand next to it.** Players need a token beside the shop or chest to open it, diagonals
   included. GMs are never restricted, and the check yields whenever distance cannot honestly
   be measured — no canvas, or no token on either side.
@@ -76,7 +77,7 @@ await api.setMerchant(actor, { enabled, priceModifier, sellModifier, infiniteSto
 await api.setContainer(actor, { enabled, ephemeral });
 api.openShelf(actor);   api.configure(actor);   api.isMerchant(actor);   api.isContainer(actor);
 await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
-await api.sell({ merchantUuid, sellerUuid, itemId, quantity });
+await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
 await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
 api.priceInCopper(item);   api.formatCopper(copper);
 ```
