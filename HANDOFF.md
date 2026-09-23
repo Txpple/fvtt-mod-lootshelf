@@ -1,182 +1,176 @@
-# Loot Shelf — handoff (v0.2, 2026-08-08)
+# Loot Shelf — handoff (v1.2.2, 2026-09-23)
 
-**v0.2 is finished, verified, and merged to `master` (pushed).** The commit messages are
-deliberately detailed — read them before changing any of the areas below, they record *why*
-each workaround exists. The one thing not yet done is cutting the release: `module.json`
-says `0.2.0` and its `download` URL points at a `v0.2.0` tag that does not exist, so the
-manifest's update check is broken until that tag and zip exist.
+**v1.2.2 is released and deployed to the Greenrest prod world.** `main` is the only branch
+and releases are committed straight to it. Prod and the local sandbox both run
+**Foundry 14.368 + dnd5e 6.0.3**. Every flow has been play-tested from a real player client,
+not only from a GM session, and nothing is known to be broken.
 
-## What v0.2 is
+What the module does at the table is in the [README](README.md). Its scope is in
+[design.md](design.md), which is binding: when in doubt, the answer that keeps Loot Shelf
+*smaller* wins. The commit messages are deliberately detailed and record *why* each
+workaround exists — read them before changing any of the areas below.
 
-Both UIs rebuilt on dnd5e's own sheet framework. The owner's mandate: v0.1 had "blindly
-copied Item Piles", which was itself legacy UI; everything must be modern FVTT 13+ /
-dnd5e 5.x, reusing the system's components rather than hand-building lookalikes.
+## Releases
 
-- **Container sheet** (`scripts/container-sheet.js`) — a `BaseActorSheet` subclass showing
-  the system's inventory tab. Replaces the raw NPC statblock. Custom columns Value / Qty /
-  Take, a Take on the coin row, and a subtitle that defaults to what the chest is worth and
-  can be typed over by the GM.
-- **Merchant shelf** (`scripts/merchant-sheet.js`) — same construction, plus three custom
-  inventory COLUMNS (shelf price / stock / Buy, an eye toggle for the GM). Replaces the
-  hand-rolled v0.1 window entirely; `templates/merchant-shelf.hbs` is deleted.
-- **Sheet assignment** (`scripts/sheets.js`) — both roles swap the actor onto our sheet via
-  `flags.core.sheetClass`. Also home to the reach check.
-- **Taking** — Take routes through the kernel, so an unowned chest can be looted without
-  ownership, and offers the looter's **party stash** (a dnd5e group actor they belong to)
-  as a destination. `canReceive` in transfer.js widens the ownership rule for exactly that.
-- **Canvas drop** (`scripts/canvas-drop.js`) — a GM dragging an item from a compendium or
-  the sidebar onto the scene leaves it there as a container. GM only, source items only.
-- **Reach** — players must have a token beside a shop or chest to open it. Fails open when
-  distance cannot be measured. World setting.
-- **Self-clearing loot** — a container flagged `ephemeral` (what canvas-drop sets) removes
-  its tokens once players empty it. Deliberately NOT every container.
+| Version | Date | What changed |
+| --- | --- | --- |
+| 1.0.0 | 2026-08-07 | The "v0.2" rebuild (never tagged on its own): both UIs on dnd5e's sheet framework, token-art states cut, canvas drop, reach, self-clearing loot, public loot log |
+| 1.0.1 | 2026-08-08 | Dropped loot shows its name on hover |
+| 1.1.0 | 2026-08-12 | Sell proceeds can be paid into the seller's party purse |
+| 1.2.0 | 2026-08-12 | Receipt Settings: broadcast, or whisper to participants and DMs |
+| 1.2.1 | 2026-09-23 | The shelf ignores `equipped` — dnd5e 6 re-equips NPC goods on its own |
+| 1.2.2 | 2026-09-23 | Loot moves into bags instead of duplicating; shop goods can't be bagged |
 
-An actor is a merchant **or** a container, never both — the config dialog enforces it with
-a radio. The stored flags keep their two-branch shape for back-compat.
+## Code map
 
-## Environment
+- **`transfer.js`** — the kernel. A GM-elect proxy over plain `game.socket` with five ops:
+  `purchase`, `sell`, `takeFromContainer`, `takeCurrencyFromContainer`, `transferItem`.
+  Every op re-validates ownership, stock and price GM-side; a client never names its own
+  number. `canReceive` lets a player deliver into a dnd5e group actor they belong to (the
+  party stash). The audit line and the receipt-visibility setting live here too.
+- **`container.js`** — container flags, the ephemeral cleanup, and the fixes for dnd5e's
+  bag and inventory drop paths (see landmine 3).
+- **`container-sheet.js`, `merchant-sheet.js`** — `BaseActorSheet` subclasses built on the
+  system's own inventory tab. The shelf adds three custom columns: price, stock, and Buy
+  (an eye toggle for the GM).
+- **`merchant.js`** — merchant flags, the shop drop guards, and the `Token#_canView`
+  widening that lets a player double-click a shop they don't own.
+- **`sheets.js`** — which sheet an actor wears (via `flags.core.sheetClass`), plus the reach
+  check.
+- **`config.js`** — the per-actor GM dialog. `canvas-drop.js` — drop an item on the map to
+  make loot. `receipts.js` — the radio UI for the receipt setting.
 
-- Local Foundry install, **copy-deploy** (owner explicitly does not want a symlink):
-  run `tools/deploy.ps1` from the repo root. World reload (F5) for scripts and CSS; full
-  Foundry restart only for `module.json`.
-- Live world **"The Broken Heart of Greenrest"** (`localhost:30000`), Foundry 14.365,
-  dnd5e 5.3.3. Item Piles is disabled in this world.
-- **A Foundry user "Claude" (GM, no password) exists so the assistant can verify its own
-  UI work.** Join via the browser tools, resize to >= 1024x768, drive with
-  `javascript_tool` (wrap `await` in an IIFE — top-level await is a SyntaxError there).
-  Do NOT join as "DM Assistant"; that is the MCP bridge's user and would kick it.
+## Development loop
 
-## Verification technique that worked
+- **Deploy to the sandbox** from the sibling MCP repo, `../fvtt-mcp-dnd5e`:
+  `node scripts/deploy-house-module.mjs fvtt-mod-lootshelf --local`. It copies (the owner
+  does not want a symlink) and reads the bytes back. Reload the world for scripts, styles
+  and templates; `module.json` changes need a Foundry process restart. A sandbox refresh
+  (`pull-prod-to-local.mjs`) mirrors prod's modules, so re-run `--local` after one.
+- **The sandbox is shared.** Battle Flow's test battery also uses it, restarts the server,
+  and needs to be the only GM. Check whether a sibling session is using it before a live
+  run, and hand it back when done.
+- **Live gates** in `tools/` import the MCP repo's client (`npm install` links it as a file
+  dependency). Run each with `FOUNDRY_HOST=local`:
+  - `verify-lootshelf.mjs` — both Greenrest shelves render, filter, price, reject bad
+    buys, and complete a real buy + sell-back. It **resets** Wend's purse to 1000 gp and the
+    probe Longsword stock to 20 (fixed baseline values, not what was there before), so
+    snapshot and restore around it if Wend has moved on.
+  - `verify-loot-drops.mjs` — 10 checks that loot *moves* on all three dnd5e drop paths and
+    that shop goods can't leave by any of them. The regression gate for v1.2.2.
+  - `verify-receipt-settings.mjs` — both receipt policies, for Loot Shelf and Party Stash.
+- **Identities.** Headless runs join as the `suite` identity (Tester Assistant), which does
+  not kick the MCP bridge; the player side is `Open Player 1`, who owns **Salyth** — a
+  complete shopper and looter. When the owner asks for testing to be *hosted* in a browser,
+  the assistant joins as **DM Assistant** (the owner types the password) and accepts that
+  this kicks the bridge.
+- **Only `game.users.activeGM` answers socket ops** — the highest-role active GM, not
+  necessarily the human. After a deploy every GM client must reload or ops fail with
+  `unknown operation "<op>"`. Check `game.users.activeGM?.name` before blaming the code.
+- **The kernel grants before it decrements**, so when asserting a take or a sale, wait on
+  the *source* side, not the recipient.
+- **Player errors surface in the player's browser console**, not the GM's.
 
-Screenshots require the Browser pane to be visible on the user's screen, and it renders
-scaled, so screenshot pixel coordinates do not match page coordinates. **Measure the DOM
-instead** — `getBoundingClientRect()`, `getComputedStyle`, reading
-`.item-header[data-column-id]`. That is more precise than eyeballing for CSS work.
+### Verifying UI by hand
 
-To exercise a drag without a mouse, dispatch the real sequence on the real elements and
-let Foundry populate the payload: `new DataTransfer()` -> `dragstart` on the source
-`.item-row.draggable` -> `dragover` -> `drop` on the target `.inventory-element`.
-Hand-building drop data and calling `_onDrop`/`_onDropItem` does not reproduce the real
-path. Synthetic events still resolve as "copy" because a real drag's `dropEffect` comes
-from modifier keys, so stub `sheet._dropBehavior = () => "move"` to exercise moves.
+Screenshots need the Browser pane visible and render scaled, so **measure the DOM**:
+`getBoundingClientRect()`, `getComputedStyle`, `.item-header[data-column-id]`.
 
-To see the shopper's view from a GM session:
-`Object.defineProperty(game.user, "isGM", {value: false, configurable: true})`, render,
-inspect, then `delete game.user.isGM`.
+To exercise a drag, dispatch the real event sequence on the real elements and let Foundry
+build the payload: `new DataTransfer()` → `dragstart` on the source sheet's
+`li.item > .item-row` → `dragover` → `drop` on the target → `dragend`. dnd5e 6 records the
+payload only on a handled dragstart and resolves move-vs-copy in `dragover`, so dispatching
+`dragover` before `drop` yields the real behavior. Hand-built drop data does not reproduce
+the real path.
 
-## Landmines found (all worked around, all in commit messages)
+## Release and prod deploy
 
-1. **Core vs dnd5e `TABS` shape.** Core reads `static TABS` as a record of tab *groups*;
-   dnd5e overrides it with an *array*. They only coexist because core auto-prepares tabs
-   when `Object.keys(TABS).length === 1` and every system sheet has 2+ tabs. A one-tab
-   sheet made core read the tab object as a group config and throw on `tabs.reduce` of
-   undefined. Both sheets override `_getTabsConfig` to hand core an empty group.
-2. **Column widths come from CSS**, keyed on `.item-<columnId>`, applied to header and row
-   cells together. The `width` in a column descriptor is advisory metadata only. Custom
-   column ids need matching CSS or they collapse to zero width.
-3. **dnd5e's move-delete targets the wrong document.** `_onDropCreateItems` transforms NPC
-   gear via `asGear()` — which returns a *clone of the compendium entry* — then deletes
-   from the transformed array. Deleting out of a container errored on the locked compendium
-   and duplicated the loot. Worked around in `container.js`; **worth reporting upstream**,
-   it affects any NPC-to-PC move drag, not just this module.
-4. **Foundry checks ownership at every layer independently.** Three separate gates blocked
-   players, none visible from a GM session: `Token#_canView` (the double-click event is
-   never dispatched), the actor sheet's `viewPermission`, and the *item* sheet's
-   `viewPermission` (an embedded item inherits its parent actor's permissions). All three
-   are widened for flagged actors only.
-5. **Drag permissions are tied to editability**, which is why shoppers could drag goods out
-   for free and could not drop items in to sell. Both are now decided by the sheet
-   (`_canDragStart` / `_canDragDrop`) rather than by ownership.
+1. A fix commit, then a `release: vX.Y.Z` commit that touches only `module.json`. Bump
+   `version` **and** the `download` URL's tag together.
+2. **Zip trap.** Do not build the zip with PowerShell's `Compress-Archive`: on Windows
+   PowerShell 5.1 it writes backslash entry names (`scripts\transfer.js`), Foundry's
+   Linux-side extractor treats that as a literal filename, and the module fails to load.
+   Build with `[IO.Compression.ZipFile]::Open` + `CreateEntryFromFile` using forward-slash
+   entry names, and assert there are zero backslash entries before uploading.
+3. The GitHub release needs **two** assets: `fvtt-mod-lootshelf.zip` and a bare
+   `module.json` (the latter makes `releases/latest/download/module.json` resolve). Verify
+   both URLs return 200.
+4. **Prod only with the owner's word.** From `../fvtt-mcp-dnd5e`:
+   `FOUNDRY_HOST=molten node scripts/deploy-house-module.mjs fvtt-mod-lootshelf --check`,
+   then again without `--check`. It hot-deploys over WebDAV with byte read-back and
+   disconnects nobody. The in-app version string stays old until prod's process next
+   restarts — expected, and not ours to restart. (`register-module.mjs` restarts the box
+   and is only for a module that was never installed. Never `game.shutDown()` through the
+   bridge.)
+5. After a prod deploy the MCP bridge still runs the old code and may be the active GM —
+   call `disconnect-bridge` on the prod server so its next call reloads.
+6. Read-only prod check: join headless as `Open Player 1`, render each merchant sheet, and
+   count `[data-action="buy"]`. At v1.2.2: Wend 151/151, Selma 26/26.
 
-## Design decisions the owner made (do not silently revert)
+## Landmines (all worked around; details in the commit messages)
 
-- **No ownership grants for merchants or containers.** Players open both via
-  `viewPermission: NONE`. Granting OBSERVER was explicitly rejected: it would put ten shops
-  in every player's sidebar. Looking is unguarded; taking is guarded GM-side.
-- **Taking from an unowned chest** goes through the kernel op `takeFromContainer`.
-  `transferItem` keeps its stricter both-endpoints-owned contract on purpose.
-- **Shop funds gate selling.** The owner first said not to track merchant money, then
-  reversed. Current behavior: the shelf caps the offered quantity by the shop's purse and
-  refuses when it cannot afford one; the kernel enforces the same rule.
-- UI trims requested and applied: no tab strip, no create-item button, no window title
-  icon, no item property glyphs on the shelf, slim 52px header, currency and search pinned
-  while only the list scrolls.
+1. **Core vs dnd5e `TABS` shape.** Core reads `static TABS` as a record of tab groups;
+   dnd5e overrides it with an array. A one-tab sheet made core misread it and throw. Both
+   sheets override `_getTabsConfig` to hand core an empty group.
+2. **Column widths come from CSS**, keyed on `.item-<columnId>`. The `width` in a column
+   descriptor is advisory only; a custom column without matching CSS collapses to zero.
+3. **dnd5e has three drop paths, and each one's move-delete is broken for loot.** The
+   inventory list (`_onDropCreateItems`, where `asGear()` swaps in a *compendium clone* and
+   the delete misses the real source), the bag tile (`_onDropItemContainer`), and an open
+   bag sheet (ContainerSheet, which treats any cross-actor drag as a copy — intercepted via
+   `dnd5e.dropItemSheetData` → kernel `takeFromContainer({ intoContainerId })`). The shop
+   guard covers all three; before v1.2.2 a player took 42 Longswords free through a bag.
+   **If dnd5e adds a fourth drop path, this is the class of bug to look for.** Worth
+   reporting upstream — it affects any NPC-to-PC move, not just this module.
+4. **Foundry checks ownership at every layer independently.** `Token#_canView` (the
+   double-click is never dispatched), the actor sheet's `viewPermission`, and the item
+   sheet's `viewPermission` each blocked players. All three are widened for flagged actors
+   only.
+5. **Drag permissions are tied to editability**, so the sheets decide them
+   (`_canDragStart` / `_canDragDrop`) rather than ownership.
+6. **dnd5e 6 owns `system.equipped` on NPCs.** A weapon or armor created on an NPC arrives
+   equipped, and every world migration re-equips every unequipped NPC item. The shelf and
+   the kernel ignore `equipped`; the hide flag is the only curation signal. **Don't
+   reintroduce an equipped filter.**
+7. **Stocked items must detach `system.container`** — compendium items carry stale refs
+   (SRD Rations → Backpack).
+8. **`getDependentTokens()` returns ephemeral id-null tokens** whose `update()` throws
+   synchronously; the emptied-container cleanup filters `t.id && t.parent`.
+9. dnd5e's header `.preparation-warnings` ⚠ is always present on a re-equipped shop and
+   threw, so `sheets.js` removes it.
 
-## The player -> GM socket hop IS testable — join as a player
+## Owner decisions (do not silently revert)
 
-The previous note here claimed this could not be exercised, because the assistant's
-session was itself the elected GM and Foundry never loops a socket emit back to its
-sender. That was a property of *which user was joined*, not a limitation. **Join one of
-the spare `Open Player 1` / `Open Player 2` slots instead** (no password; `Open Player 1`
-owns the PC **Salyth**, which makes it a complete shopper and looter) and leave any other
-GM client connected. Verified 2026-08-08: a 4ms round trip, the rejection raised by the
-GM-side validator.
+- **No ownership grants** for merchants or containers. Players open both via
+  `viewPermission: NONE`; granting OBSERVER was rejected because it would put every shop in
+  every player's sidebar. Looking is unguarded; taking is guarded GM-side.
+- **Taking from an unowned chest** goes through `takeFromContainer`. `transferItem` keeps
+  its stricter both-endpoints-owned contract on purpose.
+- **Shop funds gate selling.** The shelf caps the offered quantity by the shop's purse, and
+  the kernel enforces the same rule.
+- **An actor is a merchant or a container, never both** — a radio in the config dialog.
+- **Receipts are a public loot log by default**; the Receipt Settings option whispers them
+  instead.
+- **The container token-art state machine was cut in the v0.2 rebuild** (closed/open/empty
+  art and the `opened` flag). Do not re-add it; design.md records why.
+- **Actor husks stay.** An emptied ephemeral container deletes its tokens but keeps its
+  actor in the "Loot Shelf" folder, so they accumulate. The owner chose this — deleting
+  actors is irreversible. Do not "fix" it unprompted.
+- UI trims: no tab strip, no create-item button, no window title icon, no item property
+  glyphs on the shelf, a slim 52px header, and currency and search pinned while only the
+  list scrolls.
 
-To probe the transport without mutating anything, call
-`api.purchase({ merchantUuid, buyerUuid, itemId: "bogus" })` and check the rejection text
-comes back from the kernel rather than timing out.
+## Leftovers in the worlds
 
-Two traps that cost real time:
-
-- **Only `game.users.activeGM` answers**, and after a deploy every GM client must be
-  reloaded or ops fail with `unknown operation "<op>"`. Election does not prefer the human
-  — a leftover **Claude** session outranked the owner's own `Matt the DM` and kept
-  answering with stale code. Check `game.users.activeGM?.name` before blaming the code.
-- **The MCP bridge's writes do not reach the live world.** `update-actor` returns
-  `success: true` and the browser client never sees the change; its `list-actors` /
-  `list-users` are stale too. Read and write through the browser session.
-
-### Verified end to end (2026-08-08)
-
-Confirmed by the owner in a real player client, over the real socket:
-
-- **Buy** — a player purchasing from the shelf.
-- **Sell** — a player completing a sale by dropping an item on the shelf.
-- **Take** — both the per-item button and the coin button, with the audit whisper.
-- **Party destination** — taking into a group actor's stash.
-- **Canvas drop** — dragging a compendium/sidebar item onto the scene.
-- **Reach** — refused at range, opens when adjacent.
-- **Self-clearing loot** — an emptied ephemeral container removing itself.
-- The **transport itself**, measured separately at a 4ms round trip.
-
-That is every flow this document ever opened as a blocker. The token-art and opened-flag
-items that used to sit on this list are gone rather than verified — the feature was cut,
-see the note in container.js.
-
-- **Drag-out of an unowned chest** — the `_onDropCreateItems` path in container.js, where
-  the dnd5e `asGear()` duplication bug is worked around.
-
-**Nothing is left unverified.** Every flow this document ever listed as a blocker has been
-run against a real player client.
-
-If something does break later, check the browser console **on the player's client**, not
-the GM's; these errors surface there.
-
-### Accepted, not a loose end
-
-An emptied ephemeral container loses its TOKENS but keeps its ACTOR in the "Loot Shelf"
-folder, and canvas-drop mints one actor per drop, so those husks accumulate. The owner
-reviewed this on 2026-08-08 and chose to leave it: deleting the actor is irreversible, and
-clearing the canvas was the actual goal. Do not "fix" it unprompted.
-
-## Test fixtures left in the world
-
-- Actor **"Merchant Test"** — flagged merchant, priceModifier 1.2, sellModifier 0.5,
-  purse set to 100 gp, stocked with Leather Armor and a Lute (quantity 3 each) purely for
-  testing. Delete or repurpose freely. (Note: the MCP bridge cannot see this actor —
-  see the bridge warning above. The browser client can.)
-- **"The Party"** is the owner's real dnd5e **group actor**, set as the world's primary
-  party. Not a Loot Shelf fixture, and not ours to touch — but worth knowing it is the
-  sheet both our windows are built on, which is where their look comes from.
-- Two macros: **"LS: Capture drag error"** (arms a diagnostic that whispers a stack trace)
-  and **"LS: Diagnose container sheet"**. Both are debug aids and can be deleted.
-- The macro **"LS: Test Chest v0.2"** creates a container through the public API.
-- Gren Greenmantle may hold one **Leather Armor** created during earlier testing that could
-  not be cleanly separated from the owner's own edits — worth a glance.
+Three unpinned debug macros from the v0.2 rebuild exist in both prod and the sandbox:
+**"LS: Capture drag error"**, **"LS: Diagnose container sheet"**, and
+**"LS: Test Chest v0.2"** (creates a container through the public API). None are needed;
+deleting them is the owner's call.
 
 ## Loose ends
 
-- `module.json` is bumped to **0.2.0** and its `download` URL points at a `v0.2.0` tag that
-  does not exist yet. Valid once that release is cut.
-- The **loot-split** feature in `design.md` is still unbuilt.
-- `design.md` is binding. When in doubt, the answer that keeps Loot Shelf *smaller* wins.
+- **Loot split** (design.md) is still unbuilt.
+- dnd5e 6.0 dropped `integer: true` on currency. The kernel floors coins, which is harmless
+  unless a world configures `fractionalDigits`.
+- Cosmetic, GM-only, pre-existing: expanded shelf rows repeat the eye column on each
+  activity row.

@@ -1,15 +1,16 @@
 // Live verification for the Loot Shelf module against the Greenrest merchants.
 //
 // Proves the two shelves actually WORK, not just that their flags look right — run it after every
-// Loot Shelf release (register-module.mjs) as the deploy gate:
+// Loot Shelf deploy (deploy-house-module.mjs) as the gate:
 //   A. module + sheet registration
 //   B. both shelves RENDER headlessly (openShelf catches template/JS breakage a flag read can't)
 //   C. shelf contents are what a shopper would see — hidden kit filtered, prices at modifier
 //   D. kernel rejects: bogus item, a hidden item, and over-stock on a pinned magic item
 //   E. a real buy + sell-back round trip through the kernel, against a throwaway buyer
 //
-// Everything mutated in E is restored: the fixture actor is deleted and both the merchant's
-// purse and the probe item's quantity are written back to their pre-test values.
+// Everything mutated in E is reset: the fixture actor is deleted, and the merchant's purse and
+// the probe item's quantity are written to the CANONICAL values below (1000 gp, 20 in stock) —
+// not to what was there before the run. On a world where Wend has since traded, snapshot first.
 //
 // The kernel's audit lines are public chat by design, so a run leaves a few messages behind.
 //

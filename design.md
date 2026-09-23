@@ -10,6 +10,9 @@ not a port — a net-new build with **no backward compatibility**: no `item-pile
 migration, no behavior matching. The current (Greenrest) campaign rides Item Piles + the
 local NaN hotfix to its end; both retire with it.
 
+*(Status 2026-09-23: the timeline moved up — Loot Shelf is live in the Greenrest world itself,
+and its shops run on it. Current state is in [HANDOFF.md](HANDOFF.md).)*
+
 ## Scope — locked
 
 Two features. **That's it.**
@@ -42,7 +45,7 @@ Two features. **That's it.**
   Item Piles NaN-attunement bug class (its root cause was a config/transformer registration
   race between two modules — see lineage below).
 - **MCP-friendly by construction.** Merchant and container setup exposed as a small
-  documented API (`game.modules.get('fvtt-mod-lootshelf').api`), so the molten5e bridge can
+  documented API (`game.modules.get('fvtt-mod-lootshelf').api`), so the MCP bridge can
   get `create-merchant` / `create-loot-container` tools without UI scripting.
 - **Fail open, never destructive** (family convention): if a system seam moves, log and fall
   back to stock behavior.
@@ -70,7 +73,7 @@ Two features. **That's it.**
   table — the group-sheet look), assigned via `flags.core.sheetClass`. This replaces the
   raw NPC statblock sheet, which read as legacy Item-Piles-era UX. The rule stands:
   reuse the system's sheet framework and components; never hand-build lookalike item
-  lists. The merchant shelf gets the same visual uplift next.
+  lists. The merchant shelf got the same visual uplift (next item).
 - **Merchant shelf** — *(v0.2 uplift)* no longer a custom window: the shelf is the
   merchant's own dnd5e sheet, built on the system's inventory with three custom COLUMNS
   (shelf price, stock, Buy — an eye toggle for the GM), since `InventoryElement.mapColumns`
@@ -103,15 +106,11 @@ bundled Svelte/TyphonJS UI runtime for features this table doesn't use. Owner de
 - Module id `fvtt-mod-lootshelf`, title **Loot Shelf**, MIT, author Matthew Sippel.
 - Layout mirrors partystash: `module.json` + `scripts/lootshelf.js` (+ `templates/`,
   `styles/` as the merchant sheet needs them). Release = manifest URL off GitHub releases.
-- Compat pins (min v13 / verify on current, dnd5e 5.x min) set at first release against the
-  live world's versions, not guessed now.
+- Compat pins: minimum Foundry v13 and dnd5e 5.0; `verified` tracks the live world's
+  versions at each release, never guessed.
 
-## First-session checklist
+## Build order (done)
 
-1. Scaffold `module.json` + entry script per family conventions.
-2. Build the transfer kernel first (it's the foundation and the testable core).
-3. Loot container second (smallest user-visible win; dogfood in a dev session).
-4. Merchant shelf last (the one real UI).
-5. Deploy note (Molten-era, if it still applies): package registry is PROCESS-boot-scoped —
-   a brand-new module needs `/setup` `installPackage`, not just a world bounce; never
-   `game.shutDown()` through the bridge.
+The first-session plan — kernel first, loot container second, merchant shelf last — shipped
+as v1.0.0 on 2026-08-07. The dev loop, release steps and prod deploy are in
+[HANDOFF.md](HANDOFF.md).

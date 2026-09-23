@@ -11,8 +11,8 @@
  *      A GM can also drag an item from a compendium or the sidebar onto the scene to leave
  *      it lying there as a container (canvas-drop.js).
  *
- *   2. MERCHANT SHELF (merchant.js) — the one custom window, ApplicationV2 + Handlebars.
- *      Stock with prices, buy and sell-back flows, per-item hide-from-shelf flag. All
+ *   2. MERCHANT SHELF (merchant.js) — the merchant's own dnd5e sheet (merchant-sheet.js),
+ *      wearing prices: stock, buy and sell-back flows, per-item hide-from-shelf flag. All
  *      mutations go through the transfer kernel (transfer.js): a GM-elect proxy on plain
  *      `game.socket` that re-validates ownership, stock, and price GM-side.
  *
@@ -21,18 +21,21 @@
  * touched — see design.md ("Lineage") for why that sentence is the whole reason this
  * module exists.
  *
- * Public API (MCP-friendly by construction — the molten5e bridge drives these directly):
+ * Public API (MCP-friendly by construction — the MCP bridge, fvtt-mcp-dnd5e, drives these
+ * directly):
  *
  *   const api = game.modules.get("fvtt-mod-lootshelf").api;
  *   await api.createMerchant({ name, img, items: [uuid|itemData, ...], priceModifier,
  *                              sellModifier, infiniteStock, folder });
- *   await api.createLootContainer({ name, img, items, defaultOwnership, folder });
+ *   await api.createLootContainer({ name, img, items, defaultOwnership, folder, ephemeral });
  *   await api.setMerchant(actor, { enabled, priceModifier, sellModifier, infiniteStock });
- *   await api.setContainer(actor, { enabled });
+ *   await api.setContainer(actor, { enabled, ephemeral });
+ *   api.isMerchant(actor);       api.isContainer(actor);
  *   api.openShelf(actor);        api.configure(actor);      // the GM dialog
  *   await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
  *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
  *   await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
+ *   api.priceInCopper(item);     api.formatCopper(copper);
  */
 
 import { MODULE_ID, gmRequest, priceInCopper, formatCopper } from "./transfer.js";

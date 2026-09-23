@@ -76,7 +76,7 @@ export async function createMerchant({
 /**
  * Open (or refocus) the shelf for a merchant actor. The shelf IS the merchant's sheet
  * now (merchant-sheet.js), assigned via `flags.core.sheetClass`, so this is just a
- * render — kept as an API entry point because macros and the molten5e bridge call it.
+ * render — kept as an API entry point because macros and the MCP bridge call it.
  */
 export function openShelf(actor) {
   actor = actor instanceof Actor ? actor : actor?.actor;
