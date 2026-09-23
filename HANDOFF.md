@@ -162,10 +162,9 @@ the real path.
 
 ## Leftovers in the worlds
 
-Three unpinned debug macros from the v0.2 rebuild exist in both prod and the sandbox:
-**"LS: Capture drag error"**, **"LS: Diagnose container sheet"**, and
-**"LS: Test Chest v0.2"** (creates a container through the public API). None are needed;
-deleting them is the owner's call.
+None. The v0.2 debug macros ("LS: Capture drag error", "LS: Diagnose container sheet",
+"LS: Test Chest v0.2") were deleted from prod on 2026-09-23; the sandbox copies go with its
+next refresh, which mirrors prod's world data.
 
 ## Loose ends
 
