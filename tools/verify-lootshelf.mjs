@@ -85,7 +85,9 @@ const res = await f.evaluate(
       ok(`${label} shelf renders`, rendered, renderErr);
 
       const physical = a.items.contents.filter(i => i.system?.schema?.fields?.quantity);
-      const visible = physical.filter(i => !i.getFlag(LS, 'hidden') && !i.system.equipped);
+      // The shelf's own rule (merchant-sheet.js #onShelf): the hide flag only — equipped
+      // state is ignored, since dnd5e 6 re-equips NPC items on every migration.
+      const visible = physical.filter(i => !i.getFlag(LS, 'hidden'));
       const priceMod = Number(cfg?.priceModifier) || 1;
       out.shelves[label] = {
         total: a.items.size,

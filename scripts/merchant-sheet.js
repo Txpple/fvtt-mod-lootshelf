@@ -18,9 +18,9 @@
  * every purchase and sale is re-validated GM-side by the transfer kernel.
  *
  * Because the merchant wears this sheet full-time, the GM's view doubles as the stocking
- * view: GMs see every item — including hidden and equipped ones — with the system's normal
- * quantity and controls columns plus the eye toggle, and stock the shop by dragging items
- * in exactly as before. Shoppers see the curated list with prices and Buy buttons.
+ * view: GMs see every item — including hidden ones — with the system's normal quantity and
+ * controls columns plus the eye toggle, and stock the shop by dragging items in exactly as
+ * before. Shoppers see the curated list with prices and Buy buttons.
  */
 
 import {
@@ -120,11 +120,21 @@ Hooks.once("init", () => {
         ?? null;
     }
 
-    /** What a shopper is allowed to see on the shelf. GMs see everything, to stock it. */
+    /**
+     * What a shopper is allowed to see on the shelf. GMs see everything, to stock it.
+     *
+     * The hide flag is the ONLY curation signal. `system.equipped` used to count too (the
+     * shopkeeper's own gear, off the shelf by construction), but on an NPC dnd5e owns that
+     * field and rewrites it behind our back: from 6.0, a weapon or armor created on an NPC
+     * that is not yet a merchant arrives equipped (`preCreateEquipped`), and every world
+     * migration flips EVERY unequipped NPC item to equipped (`migrateActorData`, not
+     * version-gated). The 6.0 migration emptied both Greenrest shelves that way, and
+     * dropping goods on an NPC before making it a vendor hid the weapons and armor. A module
+     * flag is the one thing the system never touches, so it alone decides.
+     */
     #onShelf(item) {
       if (!isPhysical(item)) return false;
       if (item.system.container) return false;         // contents show under their bag
-      if (item.system.equipped) return false;          // the shopkeeper's own gear
       if (item.getFlag(MODULE_ID, "hidden")) return false;
       return (item.system.quantity ?? 0) > 0 || !!this.config.infiniteStock;
     }
@@ -185,8 +195,7 @@ Hooks.once("init", () => {
           price: unit,
           priceLabel: unit > 0 ? formatCopper(unit) : "",
           stockLabel: infinite ? "∞" : String(Math.floor(item.system.quantity ?? 0)),
-          hidden: !!item.getFlag(MODULE_ID, "hidden"),
-          equipped: !!item.system.equipped
+          hidden: !!item.getFlag(MODULE_ID, "hidden")
         };
         // A shopper clicking the row should read the item, never "use" it — it isn't
         // theirs. Activity buttons would try to use it too, and fail on permissions.

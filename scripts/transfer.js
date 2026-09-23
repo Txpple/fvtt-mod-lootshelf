@@ -200,6 +200,7 @@ export async function decrementItem(item, quantity = 1) {
 // — items sitting in a chest or on a shelf belong to nobody. This runs on the creating
 // client (preCreate hooks fire initiator-side only), so whatever is taken OUT later via
 // the native drag pipeline is already clean without a transformer layer in the middle.
+// Tidiness only on a merchant: the shelf does not read `equipped` (see #onShelf).
 Hooks.on("preCreateItem", (item, data, options, userId) => {
   try {
     const actor = item.parent;
@@ -405,8 +406,10 @@ const OPS = {
     const merchant = await resolveActor(merchantUuid);
     const cfg = merchant?.getFlag(MODULE_ID, "merchant");
     if (!cfg?.enabled) throw new Error("Loot Shelf: that actor is not a merchant.");
+    // The same rule the shelf lists by (merchant-sheet.js #onShelf): the hide flag, never
+    // `system.equipped`, which dnd5e rewrites on NPCs.
     const item = merchant.items.get(itemId);
-    if (!item || !isPhysical(item) || item.system.container || item.system.equipped
+    if (!item || !isPhysical(item) || item.system.container
       || item.getFlag(MODULE_ID, "hidden")) throw new Error("Loot Shelf: that item is not for sale.");
     const buyer = await resolveActor(buyerUuid);
     if (!buyer || buyer === merchant) throw new Error("Loot Shelf: no valid buyer.");

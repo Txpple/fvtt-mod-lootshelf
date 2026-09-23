@@ -244,10 +244,6 @@
   opacity: 0.5;
 }
 
-.dnd5e2.sheet.actor.group.lootshelf-merchant .lootshelf-locked {
-  opacity: 0.4;
-}
-
 /* Buy/sell confirmation dialogs.
 
    Foundry's form-group puts the label in a narrow flexible column meant for a settings

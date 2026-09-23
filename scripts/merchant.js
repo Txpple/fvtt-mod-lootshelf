@@ -9,12 +9,11 @@
  * kernel's GM proxy, which re-validates ownership, stock, and price server-side.
  *
  * What appears on the shelf: physical, top-level (not-inside-a-bag) items that are not
- * equipped and not flagged hidden. Equipped exclusion is what keeps the shopkeeper's own
- * sword off the shelf by construction — items *stocked* onto a flagged merchant arrive
- * unequipped (normalization in transfer.js), while gear the shopkeeper actually wears
- * stays equipped and therefore invisible. The per-item hide flag handles everything else,
- * toggled by the GM from the eye column. The GM's view of the shelf shows EVERYTHING,
- * so the same window is also where a shop gets stocked.
+ * flagged hidden. The per-item hide flag, toggled by the GM from the eye column, is what
+ * keeps the shopkeeper's own sword off the shelf. Equipped state used to do that job
+ * implicitly, until dnd5e 6.0 started equipping NPC items on its own — see #onShelf in
+ * merchant-sheet.js. The GM's view of the shelf shows EVERYTHING, so the same window is
+ * also where a shop gets stocked.
  *
  * Pricing: per-item dnd5e price × the merchant's `priceModifier`, rounded up, computed
  * from the same helpers the GM-side kernel uses so the label always matches the charge.

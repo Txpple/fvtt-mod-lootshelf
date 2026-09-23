@@ -30,8 +30,11 @@ https://github.com/Txpple/fvtt-mod-lootshelf/releases/latest/download/module.jso
   pick what the actor is: a loot container or a merchant shelf. An actor is one or the
   other, never both.
 - **Stock either one by dragging items onto its sheet.** Attunement and equipped state are
-  cleared on the way in. On a merchant, equipped or hidden (the eye column) items never
-  show to players — the GM's view of the shelf is also the stocking view.
+  cleared on the way in. On a merchant, everything is for sale except what you hide with
+  the eye column — the GM's view of the shelf is also the stocking view. When you turn an
+  existing NPC into a shop, hide its own weapons and armor there. (Equipped state is
+  deliberately ignored: dnd5e 6 re-equips NPC items on its own, including during every
+  system migration.)
 - **Drag an item from a compendium or the Items sidebar onto the scene** to leave it lying
   there: a container named and illustrated after the item, holding a copy of it, filed
   under a "Loot Shelf" folder. GM only. Items dragged off a character's sheet are
@@ -102,7 +105,8 @@ api.priceInCopper(item);   api.formatCopper(copper);
 
 ## Compatibility
 
-**dnd5e 5.x** on **Foundry v13+**. Verified against Foundry 14.365 and dnd5e 5.3.3.
+**dnd5e 5.x and 6.x** on **Foundry v13+**. Verified against Foundry 14.368 and dnd5e 6.0.3
+(releases up to 1.2.0 against Foundry 14.365 and dnd5e 5.3.3).
 
 ## License
 

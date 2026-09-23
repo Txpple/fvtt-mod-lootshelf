@@ -51,7 +51,7 @@ export function sheetUnset(actor) {
  * - The EQUIP / ATTUNE / PREPARE controls. dnd5e's controls cell renders edit+delete when
  *   the sheet is editable and these three when it is merely owned — which is what a GM
  *   gets here by default. Nobody wears the shop's stock or attunes to loot that is still
- *   sitting in the chest, and on a merchant equipping actively removes goods from sale.
+ *   sitting in the chest.
  *
  * Removed from the DOM rather than hidden in CSS so they stay out of the tab order, the
  * same reasoning that applies to `.create-child` on both sheets.
