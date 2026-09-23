@@ -52,6 +52,12 @@ export function sheetUnset(actor) {
  *   the sheet is editable and these three when it is merely owned — which is what a GM
  *   gets here by default. Nobody wears the shop's stock or attunes to loot that is still
  *   sitting in the chest.
+ * - The PREPARATION WARNINGS button dnd5e adds to the title bar. Its warnings are about the
+ *   NPC as a creature ("more than one suit of armor equipped") — and since dnd5e 6 equips
+ *   every NPC item on migration, a stocked shop always has them, so players saw a warning
+ *   triangle on the shelf. It also only works on the system's own sheets: the dialog it
+ *   opens lives in their header template, so on ours clicking it threw. The GM reads them on
+ *   the statblock sheet if they care.
  *
  * Removed from the DOM rather than hidden in CSS so they stay out of the tab order, the
  * same reasoning that applies to `.create-child` on both sheets.
@@ -141,6 +147,7 @@ export function warnOutOfReach(actor) {
 export function trimSheetChrome(element) {
   if (!element) return;
   element.querySelector('.currency [data-action="currency"]')?.remove();
+  element.querySelector(".window-header .preparation-warnings")?.remove();
   for (const action of ["equip", "attune", "prepare"]) {
     for (const button of element.querySelectorAll(`.item-controls [data-action="${action}"]`)) {
       button.remove();

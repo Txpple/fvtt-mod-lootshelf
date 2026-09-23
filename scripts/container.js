@@ -13,7 +13,10 @@
  *      Stash wraps (both wraps chain cleanly in either load order). One-sided ownership
  *      is blocked with a warning rather than silently copying, because a copy out of a
  *      chest the player can't delete from is item duplication. Ctrl-drag still forces a
- *      deliberate copy, Shift-drag still forces a move elsewhere.
+ *      deliberate copy, Shift-drag still forces a move elsewhere. The move itself is done
+ *      by the module on each of dnd5e's three landing spots — the inventory list, a bag
+ *      tile, an open bag sheet — because the system's own move-delete is broken on all
+ *      three for loot (see the fixes below).
  *
  *   2. CLEAN CONTENTS — anything dropped in arrives unattuned/unequipped (normalization
  *      lives in transfer.js), so whatever is taken out is already clean.
@@ -147,41 +150,136 @@ function installContainerMoveFix(Base) {
     // — a local create plus a remote delete could half-fail and duplicate the loot.
     const unowned = sources.filter(i => !i.parent.isOwner);
     if (unowned.length) {
-      for (const item of unowned) {
-        try {
-          const res = await gmRequest("takeFromContainer", {
-            containerUuid: item.parent.uuid,
-            actorUuid: this.inventorySource.uuid,
-            itemId: item.id,
-            quantity: item.system.quantity ?? 1
-          });
-          ui.notifications.info(`Took ${res.quantity} × ${res.name}.`);
-        } catch (err) {
-          ui.notifications.warn(err.message);
-        }
-      }
+      for (const item of unowned) await takeViaKernel(item, this.inventorySource);
       return [];
     }
 
     const created = await orig.call(this, event, items, "copy");
-    for (const source of sources) {
-      try {
-        await source.delete({ deleteContents: true });
-      } catch (err) {
-        console.error(`${MODULE_ID} | container move: deleting the source item failed; `
-          + "the item may now exist in both places", err);
-        ui.notifications.warn(
-          `Loot Shelf: ${source.name} was copied but could not be removed from `
-          + `${source.parent?.name ?? "the container"} — check for a duplicate.`);
-      }
-    }
+    for (const source of sources) await deleteMovedSource(source);
     return created;
   };
 }
 
+/** The second half of a move done as copy-then-delete: remove the true source, loudly on failure. */
+async function deleteMovedSource(source) {
+  try {
+    await source.delete({ deleteContents: true });
+  } catch (err) {
+    console.error(`${MODULE_ID} | container move: deleting the source item failed; `
+      + "the item may now exist in both places", err);
+    ui.notifications.warn(
+      `Loot Shelf: ${source.name} was copied but could not be removed from `
+      + `${source.parent?.name ?? "the container"} — check for a duplicate.`);
+  }
+}
+
+/** Hand a take from an unowned chest to the GM proxy, optionally straight into a bag. */
+async function takeViaKernel(source, recipient, bag = null) {
+  try {
+    const res = await gmRequest("takeFromContainer", {
+      containerUuid: source.parent.uuid,
+      actorUuid: recipient.uuid,
+      itemId: source.id,
+      quantity: source.system.quantity ?? 1,
+      intoContainerId: bag?.id ?? null
+    });
+    ui.notifications.info(`Took ${res.quantity} × ${res.name}${bag ? ` into ${bag.name}` : ""}.`);
+  } catch (err) {
+    ui.notifications.warn(err.message);
+  }
+}
+
+/**
+ * The same bug on dnd5e's OTHER actor-sheet creation path: a drop onto a BAG TILE.
+ *
+ * Dropping onto one of the `.container` tiles in an inventory never reaches
+ * `_onDropCreateItems` — `_onDropItem` hands it to `_onDropItemContainer`, which carries its
+ * own copy of the gear transform and the move-delete:
+ *
+ *   if ( item.actor?.system.isNPC && (item.actor !== this.actor) && item.system.asGear ) ...
+ *   if ( event._behavior === "move" ) item.delete({ deleteContents: true });
+ *
+ * so dragging loot out of a chest into a bag duplicated it either way: out of an unowned
+ * chest the delete is refused ("lacks permission"), and out of an owned one a
+ * compendium-sourced item deletes the locked compendium clone instead. Found by the dnd5e 6
+ * review (2026-09-23); 5.3.3 has the identical code, so it predates 6.0.
+ *
+ * Same cure as the list drop above. An unowned chest goes to the kernel, which files the
+ * goods straight into the bag. An owned one runs the system's path as a copy and deletes the
+ * true source afterwards — this method reads `event._behavior` rather than taking a behavior
+ * argument, so the copy is forced by flipping that for the duration of the call. An
+ * `undefined` return means the system declined (a recursive drop, or the player backed out
+ * of the unidentified-bag warning), and then nothing is deleted.
+ */
+function installContainerBagFix(Base) {
+  const orig = Base?.prototype?._onDropItemContainer;
+  if (!orig) {
+    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropItemContainer not found — `
+      + "dragging loot onto a bag may duplicate it.");
+    return;
+  }
+  Base.prototype._onDropItemContainer = async function (event, item, container) {
+    let source = null;
+    try {
+      if ((event?._behavior === "move") && (item instanceof Item) && isContainer(item.parent)
+        && (item.parent !== this.inventorySource)) source = item;
+    } catch (err) {
+      console.error(`${MODULE_ID} | container bag-drop check failed`, err);
+    }
+    if (!source) return orig.call(this, event, item, container);
+
+    if (!source.parent.isOwner) {
+      // The system's own warning before filling a bag whose contents the player can't see.
+      // Optional because the check arrived in dnd5e 6.
+      if (container.system.canDropContents && !(await container.system.canDropContents())) return;
+      await takeViaKernel(source, this.inventorySource, container);
+      return [];
+    }
+
+    const behavior = event._behavior;
+    event._behavior = "copy";
+    let created;
+    try {
+      created = await orig.call(this, event, item, container);
+    } finally {
+      event._behavior = behavior;
+    }
+    if (created !== undefined) await deleteMovedSource(source);
+    return created;
+  };
+}
+
+/**
+ * And the third door: a drop onto a bag's own ITEM sheet. dnd5e's ContainerSheet decides
+ * move-or-copy with its own item-sheet rule, which calls any drag from another actor a COPY
+ * — so dropping chest loot onto an open Backpack quietly duplicated it, and forcing a move
+ * with Shift hit the same broken delete as above. The system asks
+ * `dnd5e.dropItemSheetData` before it acts, and a `false` cancels its handling; loot coming
+ * out of a flagged container onto a bag some other actor holds is taken here instead,
+ * through the kernel, for everyone. Always a move — taking loot is the only thing that drag
+ * can mean.
+ */
+Hooks.on("dnd5e.dropItemSheetData", (bag, sheet, data) => {
+  try {
+    if (bag?.type !== "container" || !(bag.actor instanceof Actor)) return;
+    if (data?.type !== "Item" || !data.uuid) return;
+    const source = fromUuidSync(data.uuid);
+    if (!(source instanceof Item) || !isContainer(source.parent) || source.parent === bag.actor) return;
+    if (!source.system?.schema?.fields?.quantity) return;
+    (async () => {
+      if (bag.system.canDropContents && !(await bag.system.canDropContents())) return;
+      await takeViaKernel(source, bag.actor, bag);
+    })().catch(err => console.error(`${MODULE_ID} | taking loot into a bag failed`, err));
+    return false;
+  } catch (err) {
+    console.error(`${MODULE_ID} | bag-sheet drop check failed`, err);
+  }
+});
+
 Hooks.once("setup", () => {
   const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
   installContainerMoveFix(Base);
+  installContainerBagFix(Base);
   const orig = Base?.prototype?._defaultDropBehavior;
   if (!orig) {
     console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_defaultDropBehavior not found — `

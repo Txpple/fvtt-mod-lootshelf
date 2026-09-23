@@ -44,7 +44,8 @@ https://github.com/Txpple/fvtt-mod-lootshelf/releases/latest/download/module.jso
 
 - **Double-click a chest** to loot it. Every row has a **Take** button and the coin row has
   its own, so nothing needs to be dragged and no ownership needs granting. Dragging still
-  works, and drags out of a container are *moves* rather than copies.
+  works — onto your sheet, onto one of your bags, or into an open bag — and drags out of a
+  container are *moves* rather than copies.
 - **Take into the party.** If the looter belongs to a dnd5e group actor, Take offers that
   party's stash as a destination alongside their character.
 - **Double-click a shop** to browse and buy, or drag their own goods onto the shelf to sell

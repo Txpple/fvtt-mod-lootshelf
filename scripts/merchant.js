@@ -140,7 +140,17 @@ Hooks.once("setup", () => {
 //
 // The shelf blocks the drag at its source, but that is a UI affordance; this is the drop
 // side, so a drag begun some other way still cannot deposit shop stock on a character.
-// Chains with the container wrap in container.js — both defer to the original.
+// dnd5e creates dropped items along three paths — the inventory list, a bag tile, and a
+// bag's own item sheet — so all three are guarded. The two sheet wraps chain with the
+// container wraps in container.js; every guard defers to the original.
+const SHOP_WARNING = "Loot Shelf: goods have to be bought from the shelf, not carried off.";
+
+/** Is this a shop good being carried off to somewhere other than its own shop, by a player? */
+function isShopGood(item, destination) {
+  return !game.user.isGM && (item instanceof Item) && isMerchant(item.parent)
+    && (item.parent !== destination);
+}
+
 Hooks.once("setup", () => {
   const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
   const orig = Base?.prototype?._onDropCreateItems;
@@ -151,21 +161,39 @@ Hooks.once("setup", () => {
   }
   Base.prototype._onDropCreateItems = async function (event, items, behavior) {
     try {
-      if (!game.user.isGM) {
-        const fromShop = (items ?? []).filter(i =>
-          (i instanceof Item) && isMerchant(i.parent) && (i.parent !== this.inventorySource));
-        if (fromShop.length) {
-          ui.notifications.warn(
-            "Loot Shelf: goods have to be bought from the shelf, not carried off.");
-          items = items.filter(i => !fromShop.includes(i));
-          if (!items.length) return [];
-        }
+      const fromShop = (items ?? []).filter(i => isShopGood(i, this.inventorySource));
+      if (fromShop.length) {
+        ui.notifications.warn(SHOP_WARNING);
+        items = items.filter(i => !fromShop.includes(i));
+        if (!items.length) return [];
       }
     } catch (err) {
       console.error(`${MODULE_ID} | shop drag-out check failed`, err);
     }
     return orig.call(this, event, items, behavior);
   };
+
+  const origBag = Base?.prototype?._onDropItemContainer;
+  if (!origBag) return;
+  Base.prototype._onDropItemContainer = async function (event, item, container) {
+    try {
+      if (isShopGood(item, this.inventorySource)) return void ui.notifications.warn(SHOP_WARNING);
+    } catch (err) {
+      console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+    }
+    return origBag.call(this, event, item, container);
+  };
+});
+
+Hooks.on("dnd5e.dropItemSheetData", (bag, sheet, data) => {
+  try {
+    if (bag?.type !== "container" || data?.type !== "Item" || !data.uuid) return;
+    if (!isShopGood(fromUuidSync(data.uuid), bag.actor)) return;
+    ui.notifications.warn(SHOP_WARNING);
+    return false;
+  } catch (err) {
+    console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+  }
 });
 
 // Let players READ the goods on a shelf or in a chest.

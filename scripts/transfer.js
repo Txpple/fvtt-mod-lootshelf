@@ -143,12 +143,15 @@ function cleanItemData(item, quantity) {
   return data;
 }
 
-/** An existing top-level stack on `target` that a copy of `item` can merge into. */
-function findStack(target, item) {
+/**
+ * An existing stack on `target` that a copy of `item` can merge into — at the top level, or
+ * inside the bag `container` when the goods are headed into one.
+ */
+function findStack(target, item, container = null) {
   if (item.type === "container") return null;
   return target.items.find(i =>
     i.type === item.type && i.name === item.name && i.img === item.img
-    && !i.system.container && i.system.quantity != null
+    && (i.system.container ?? null) === container && i.system.quantity != null
   ) ?? null;
 }
 
@@ -167,20 +170,25 @@ async function copyContents(sourceContainer, target, containerId) {
 /**
  * Create `quantity` of `item` on `target` (merging into an existing stack when possible)
  * and return the created or updated item. Does NOT touch the source — callers decrement
- * afterwards, so the copy always lands before anything is destroyed.
+ * afterwards, so the copy always lands before anything is destroyed. `container` is the id
+ * of a bag on `target` to put it in; the caller has already checked it is one.
  */
-export async function grantItem(target, item, quantity = 1) {
+export async function grantItem(target, item, quantity = 1, { container = null } = {}) {
   if (item.type === "container") {
-    const [created] = await target.createEmbeddedDocuments("Item", [cleanItemData(item, 1)]);
+    const data = cleanItemData(item, 1);
+    if (container) data.system.container = container;
+    const [created] = await target.createEmbeddedDocuments("Item", [data]);
     await copyContents(item, target, created.id);
     return created;
   }
-  const stack = findStack(target, item);
+  const stack = findStack(target, item, container);
   if (stack) {
     await stack.update({ "system.quantity": Math.floor(stack.system.quantity ?? 0) + quantity });
     return stack;
   }
-  const [created] = await target.createEmbeddedDocuments("Item", [cleanItemData(item, quantity)]);
+  const data = cleanItemData(item, quantity);
+  if (container) data.system.container = container;
+  const [created] = await target.createEmbeddedDocuments("Item", [data]);
   return created;
 }
 
@@ -507,8 +515,12 @@ const OPS = {
    * put each one in their sidebar (the same objection that shaped the merchant shelf).
    * So the rule here is narrower and checked GM-side: the source must be a flagged loot
    * container, and the caller must own only the actor receiving the goods.
+   *
+   * `intoContainerId` files the goods straight into one of the recipient's bags — the drag
+   * onto a bag tile or an open bag sheet (container.js). It must name a container item the
+   * recipient actually holds.
    */
-  async takeFromContainer({ containerUuid, actorUuid, itemId, quantity }, user) {
+  async takeFromContainer({ containerUuid, actorUuid, itemId, quantity, intoContainerId = null }, user) {
     const container = await resolveActor(containerUuid);
     const to = await resolveActor(actorUuid);
     if (!container || !to || container === to)
@@ -520,10 +532,13 @@ const OPS = {
     const item = container.items.get(itemId);
     if (!item || !isPhysical(item))
       throw new Error("Loot Shelf: no such physical item in the container.");
+    const bag = intoContainerId ? to.items.get(intoContainerId) : null;
+    if (intoContainerId && bag?.type !== "container")
+      throw new Error(`Loot Shelf: ${to.name} has no such bag.`);
     const stock = Math.max(1, Math.floor(item.system.quantity ?? 1));
     const qty = Math.min(Math.max(1, Math.floor(quantity ?? stock)), stock);
     const name = item.name;
-    await grantItem(to, item, qty);
+    await grantItem(to, item, qty, { container: bag?.id ?? null });
     await decrementItem(item, qty);
     const emptied = await removeEmptiedContainer(container);
     audit(`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
