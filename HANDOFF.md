@@ -1,10 +1,11 @@
-# Loot Shelf — handoff (v1.2.3, 2026-09-23)
+# Loot Shelf — handoff (v1.2.4, 2026-09-23)
 
-**v1.2.3 is released and deployed to the Greenrest prod world.** It has the same code as 1.2.2;
-it only changes the manifest (its version, and dnd5e verified 6.0.5). `main` is the only
-branch and releases are committed straight to it. Prod and the local sandbox both run
-**Foundry 14.368 + dnd5e 6.0.5**. Every flow has been play-tested from a real player client,
-not only from a GM session, and nothing is known to be broken.
+**v1.2.4 is released and deployed to the Greenrest prod world.** It stops the shelf's
+button columns (the GM's eye, Buy, Take) from repeating on an expanded item's activity rows;
+see landmine 2. `main` is the only branch and releases are committed straight to it. Prod
+and the local sandbox both run **Foundry 14.368 + dnd5e 6.0.5**. Every flow has been
+play-tested from a real player client, not only from a GM session, and nothing is known to
+be broken.
 
 What the module does at the table is in the [README](README.md). Its scope is in
 [design.md](design.md), which is binding: when in doubt, the answer that keeps Loot Shelf
@@ -22,6 +23,7 @@ workaround exists — read them before changing any of the areas below.
 | 1.2.1 | 2026-09-23 | The shelf ignores `equipped` — dnd5e 6 re-equips NPC goods on its own |
 | 1.2.2 | 2026-09-23 | Loot moves into bags instead of duplicating; shop goods can't be bagged |
 | 1.2.3 | 2026-09-23 | Verified on dnd5e 6.0.5; no code change |
+| 1.2.4 | 2026-09-23 | The GM's eye no longer repeats on expanded activity rows |
 
 ## Code map
 
@@ -110,7 +112,7 @@ the real path.
 5. After a prod deploy the MCP bridge still runs the old code and may be the active GM —
    call `disconnect-bridge` on the prod server so its next call reloads.
 6. Read-only prod check: join headless as `Open Player 1`, render each merchant sheet, and
-   count `[data-action="buy"]`. Last result (v1.2.2 code, dnd5e 6.0.5): Wend 151/151, Selma 26/26.
+   count `[data-action="buy"]`. Last result (v1.2.4, dnd5e 6.0.5): Wend 151/151, Selma 26/26.
 
 ## Landmines (all worked around; details in the commit messages)
 
