@@ -106,7 +106,7 @@ api.priceInCopper(item);   api.formatCopper(copper);
 
 ## Compatibility
 
-**dnd5e 5.x and 6.x** on **Foundry v13+**. Verified against Foundry 14.368 and dnd5e 6.0.3
+**dnd5e 5.x and 6.x** on **Foundry v13+**. Verified against Foundry 14.368 and dnd5e 6.0.5
 (releases up to 1.2.0 against Foundry 14.365 and dnd5e 5.3.3).
 
 ## License

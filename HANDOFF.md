@@ -1,8 +1,9 @@
-# Loot Shelf — handoff (v1.2.2, 2026-09-23)
+# Loot Shelf — handoff (v1.2.3, 2026-09-23)
 
-**v1.2.2 is released and deployed to the Greenrest prod world.** `main` is the only branch
-and releases are committed straight to it. Prod and the local sandbox both run
-**Foundry 14.368 + dnd5e 6.0.3**. Every flow has been play-tested from a real player client,
+**v1.2.3 is released.** The Greenrest prod world runs v1.2.2's files, which have the same code:
+1.2.3 only changes the manifest (its version, and dnd5e verified 6.0.5). `main` is the only
+branch and releases are committed straight to it. Prod and the local sandbox both run
+**Foundry 14.368 + dnd5e 6.0.5**. Every flow has been play-tested from a real player client,
 not only from a GM session, and nothing is known to be broken.
 
 What the module does at the table is in the [README](README.md). Its scope is in
@@ -20,6 +21,7 @@ workaround exists — read them before changing any of the areas below.
 | 1.2.0 | 2026-08-12 | Receipt Settings: broadcast, or whisper to participants and DMs |
 | 1.2.1 | 2026-09-23 | The shelf ignores `equipped` — dnd5e 6 re-equips NPC goods on its own |
 | 1.2.2 | 2026-09-23 | Loot moves into bags instead of duplicating; shop goods can't be bagged |
+| 1.2.3 | 2026-09-23 | Verified on dnd5e 6.0.5; no code change |
 
 ## Code map
 
@@ -59,6 +61,9 @@ workaround exists — read them before changing any of the areas below.
   - `verify-loot-drops.mjs` — 10 checks that loot *moves* on all three dnd5e drop paths and
     that shop goods can't leave by any of them. The regression gate for v1.2.2.
   - `verify-receipt-settings.mjs` — both receipt policies, for Loot Shelf and Party Stash.
+    It joins as Tester Assistant on purpose: Party Stash posts a receipt from every live
+    session of the acting user, so running it as DM Assistant while an MCP bridge is online
+    doubles the stash receipts and fails two checks for no real reason.
 - **Identities.** Headless runs join as the `suite` identity (Tester Assistant), which does
   not kick the MCP bridge; the player side is `Open Player 1`, who owns **Salyth** — a
   complete shopper and looter. When the owner asks for testing to be *hosted* in a browser,
@@ -105,7 +110,7 @@ the real path.
 5. After a prod deploy the MCP bridge still runs the old code and may be the active GM —
    call `disconnect-bridge` on the prod server so its next call reloads.
 6. Read-only prod check: join headless as `Open Player 1`, render each merchant sheet, and
-   count `[data-action="buy"]`. At v1.2.2: Wend 151/151, Selma 26/26.
+   count `[data-action="buy"]`. Last result (v1.2.2 code, dnd5e 6.0.5): Wend 151/151, Selma 26/26.
 
 ## Landmines (all worked around; details in the commit messages)
 
