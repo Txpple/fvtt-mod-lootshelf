@@ -125,8 +125,7 @@ the real path.
    bag sheet (ContainerSheet, which treats any cross-actor drag as a copy — intercepted via
    `dnd5e.dropItemSheetData` → kernel `takeFromContainer({ intoContainerId })`). The shop
    guard covers all three; before v1.2.2 a player took 42 Longswords free through a bag.
-   **If dnd5e adds a fourth drop path, this is the class of bug to look for.** Worth
-   reporting upstream — it affects any NPC-to-PC move, not just this module.
+   **If dnd5e adds a fourth drop path, this is the class of bug to look for.**
 4. **Foundry checks ownership at every layer independently.** `Token#_canView` (the
    double-click is never dispatched), the actor sheet's `viewPermission`, and the item
    sheet's `viewPermission` each blocked players. All three are widened for flagged actors
@@ -154,6 +153,9 @@ the real path.
 - **Shop funds gate selling.** The shelf caps the offered quantity by the shop's purse, and
   the kernel enforces the same rule.
 - **An actor is a merchant or a container, never both** — a radio in the config dialog.
+- **Whole coins only.** The kernel floors every coin amount. dnd5e 6.0 dropped
+  `integer: true` on currency, but Loot Shelf will never support fractional coins, so this
+  is by design and not a gap.
 - **Receipts are a public loot log by default**; the Receipt Settings option whispers them
   instead.
 - **The container token-art state machine was cut in the v0.2 rebuild** (closed/open/empty
@@ -173,8 +175,5 @@ next refresh, which mirrors prod's world data.
 
 ## Loose ends
 
-- **Loot split** (design.md) is still unbuilt.
-- dnd5e 6.0 dropped `integer: true` on currency. The kernel floors coins, which is harmless
-  unless a world configures `fractionalDigits`.
 - Cosmetic, GM-only, pre-existing: expanded shelf rows repeat the eye column on each
   activity row.

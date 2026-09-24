@@ -296,8 +296,7 @@ Hooks.once("init", () => {
      * its own, so before this there was simply no way for a player to pick it up — the
      * currency boxes are read-only to anyone who doesn't own the chest. Injected rather
      * than templated because the coin row comes from the system's inventory partial.
-     *
-     * Takes the WHOLE purse for now; splitting it is a later conversation.
+     * It takes the whole purse.
      */
     #renderTakeCurrency() {
       if (game.user.isGM) return;

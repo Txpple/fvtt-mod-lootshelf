@@ -86,7 +86,6 @@ Two features. **That's it.**
   hide-from-shelf flag (the shopkeeper's own weapons/armor never leak onto the shelf —
   fixing properly what needed a workaround on Item Piles). Optional v1-minus fallback:
   context-menu Buy + chat-card confirm, pretty shelf second.
-- **Loot split** — small dialog or chat-card flow; once-a-session feature, keep it tiny.
 
 ## Lineage / why this exists
 
