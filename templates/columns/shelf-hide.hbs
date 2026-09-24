@@ -1,10 +1,17 @@
 {{!-- GM-only curation: an eye per row, toggling whether shoppers see it. Struck-through
       eye means hidden. This is the ONLY thing that takes goods off the shelf — equipped
-      state is not consulted (see the note on #onShelf in merchant-sheet.js). --}}
+      state is not consulted (see the note on #onShelf in merchant-sheet.js).
+
+      dnd5e renders every section column again on each ACTIVITY row of an expanded item
+      (activity.hbs, with isActivity instead of isItem), so without the isItem guard the eye
+      repeated under the item, always open, and toggled the parent item. The empty cell
+      stays so the grid lines up, which is what the system's own controls column does. --}}
 <div class="item-detail item-shelfHide" data-column-id="shelfHide">
+    {{#if isItem}}
     <button type="button" class="unbutton item-control always-interactive" data-action="toggleHidden"
             data-tooltip="{{#if ctx.shelf.hidden}}Hidden from shoppers{{else}}Visible to shoppers{{/if}}"
             aria-label="Toggle shelf visibility">
         <i class="fa-solid {{#if ctx.shelf.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}" inert></i>
     </button>
+    {{/if}}
 </div>

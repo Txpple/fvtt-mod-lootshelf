@@ -1,10 +1,13 @@
 {{!-- `always-interactive` is required, not decorative: a shopper does not own the
       merchant, so the sheet renders read-only and every control without this class is
-      disabled. The purchase is re-validated GM-side regardless of what the button does. --}}
+      disabled. The purchase is re-validated GM-side regardless of what the button does.
+      Item rows only — see shelf-hide.hbs for why activity rows need the guard. --}}
 <div class="item-detail item-shelfBuy" data-column-id="shelfBuy">
+    {{#if isItem}}
     <button type="button" class="lootshelf-action-button always-interactive" data-action="buy"
             aria-label="Buy {{ item.name }}">
         <i class="fa-solid fa-coins" inert></i>
         <span>Buy</span>
     </button>
+    {{/if}}
 </div>

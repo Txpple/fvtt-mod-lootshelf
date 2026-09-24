@@ -119,6 +119,10 @@ the real path.
    sheets override `_getTabsConfig` to hand core an empty group.
 2. **Column widths come from CSS**, keyed on `.item-<columnId>`. The `width` in a column
    descriptor is advisory only; a custom column without matching CSS collapses to zero.
+   dnd5e also renders every section column again on each **activity row** of an item
+   (`isActivity`, with the activity as `ctx`), so a column that draws a control must wrap
+   it in `{{#if isItem}}` and keep the empty cell. Before this guard the GM's eye repeated
+   there and toggled the parent item.
 3. **dnd5e has three drop paths, and each one's move-delete is broken for loot.** The
    inventory list (`_onDropCreateItems`, where `asGear()` swaps in a *compendium clone* and
    the delete misses the real source), the bag tile (`_onDropItemContainer`), and an open
@@ -175,5 +179,4 @@ next refresh, which mirrors prod's world data.
 
 ## Loose ends
 
-- Cosmetic, GM-only, pre-existing: expanded shelf rows repeat the eye column on each
-  activity row.
+None.
