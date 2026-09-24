@@ -1,7 +1,7 @@
 # Loot Shelf — handoff (v1.2.3, 2026-09-23)
 
-**v1.2.3 is released.** The Greenrest prod world runs v1.2.2's files, which have the same code:
-1.2.3 only changes the manifest (its version, and dnd5e verified 6.0.5). `main` is the only
+**v1.2.3 is released and deployed to the Greenrest prod world.** It has the same code as 1.2.2;
+it only changes the manifest (its version, and dnd5e verified 6.0.5). `main` is the only
 branch and releases are committed straight to it. Prod and the local sandbox both run
 **Foundry 14.368 + dnd5e 6.0.5**. Every flow has been play-tested from a real player client,
 not only from a GM session, and nothing is known to be broken.
