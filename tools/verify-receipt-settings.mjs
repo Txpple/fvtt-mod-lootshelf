@@ -17,7 +17,8 @@
 // swept in `finally`, and both settings are restored to "public" (the owner's server-wide
 // default) whatever happens.
 //
-// Run: node tools/verify-receipt-settings.mjs   (FOUNDRY_HOST=local for the sandbox)
+// Run: node tools/verify-receipt-settings.mjs   (FOUNDRY_HOST=local for the sandbox; joins as
+// Tester Assistant, which the MCP bridge never uses)
 import { Foundry, foundryConfig, loadEnv } from 'fvtt-mcp-dnd5e/client';
 
 const env = loadEnv();
@@ -33,7 +34,10 @@ function assert(cond, msg) {
 }
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
-const f = new Foundry(foundryConfig(env));
+// Join as the 'suite' identity (Tester Assistant), never the bridge's DM Assistant: Party Stash
+// posts a receipt from every live session of the acting user, so a second DM Assistant session
+// (any MCP bridge that is online) doubles its receipts and fails the one-receipt checks.
+const f = new Foundry(foundryConfig(env, undefined, 'suite'));
 
 /** A. What the two modules registered. */
 const REGISTRATION = async ({ ids }) => {
