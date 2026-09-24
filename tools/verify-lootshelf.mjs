@@ -24,7 +24,9 @@ setTimeout(() => {
   process.exit(3);
 }, 300_000);
 
-const f = new Foundry(foundryConfig(env));
+// Join as the 'suite' identity (Tester Assistant), never the bridge's DM Assistant: a harness
+// sharing the bridge's user runs a second session of it (see verify-receipt-settings.mjs).
+const f = new Foundry(foundryConfig(env, undefined, 'suite'));
 
 console.log('[verify-ls] connecting…');
 await f.connect();
