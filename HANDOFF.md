@@ -166,9 +166,8 @@ the real path.
   instead.
 - **The container token-art state machine was cut in the v0.2 rebuild** (closed/open/empty
   art and the `opened` flag). Do not re-add it; design.md records why.
-- **Actor husks stay.** An emptied ephemeral container deletes its tokens but keeps its
-  actor in the "Loot Shelf" folder, so they accumulate. The owner chose this — deleting
-  actors is irreversible. Do not "fix" it unprompted.
+- ~~**Actor husks stay.**~~ Reversed by the owner on 2026-09-30: dropped loot must clean
+  up after itself. See Loose ends.
 - UI trims: no tab strip, no create-item button, no window title icon, no item property
   glyphs on the shelf, a slim 52px header, and currency and search pinned while only the
   list scrolls.
@@ -181,4 +180,20 @@ next refresh, which mirrors prod's world data.
 
 ## Loose ends
 
-None.
+- **Dropped loot leaves actors and a folder behind** (owner, 2026-09-30). Dropping an item
+  on the canvas creates a world actor in a "Loot Shelf" folder the GM never asked for, and
+  nothing ever deletes it: an emptied pile removes only its token. The owner doesn't want
+  dropped loot showing up in the Actors sidebar. Foundry needs a world actor behind every
+  token, so the actor has to exist while the pile is on the map. The planned fix is to make
+  it temporary:
+  - Mark actors that the canvas drop creates with their own flag. `ephemeral` isn't enough,
+    because `setContainer` lets a GM put it on an actor they made themselves.
+  - Delete a marked actor when its last token goes away, whether the pile was emptied or
+    the GM deleted the token. Delete the "Loot Shelf" folder once it's empty.
+  - Sweep up the husks already there: ephemeral containers in that folder with no token on
+    any scene.
+  - Never delete an actor the drop didn't create. That was the reason the husks were kept
+    in the first place.
+  - Alternative if one sidebar entry is still too many: a single shared base actor, with
+    each pile's contents in its own unlinked token. It's a bigger change, because the
+    kernel and both sheets then work on synthetic token actors.
