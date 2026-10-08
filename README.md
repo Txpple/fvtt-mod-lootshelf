@@ -19,9 +19,9 @@ goods back, while every change is checked and carried out on the GM's client.
 - **Every buy, sale and take posts a receipt** to chat, to the whole table or to the participants
   and the DMs.
 
-Sibling of [Open Roll 5e: Party Stash](https://github.com/Txpple/fvtt-mod-partystash): Party Stash
-owns the shared party inventory, Loot Shelf owns loot on the ground and goods for sale. Neither
-needs the other.
+Its companion is [Open Roll 5e: Party Stash](https://github.com/Txpple/fvtt-mod-partystash): Party
+Stash owns the shared party inventory, Loot Shelf owns loot on the ground and goods for sale.
+Neither needs the other.
 
 ## Installation
 
@@ -111,10 +111,41 @@ api.priceInCopper(item);   api.formatCopper(copper);
 
 `items` accepts Item uuids (compendium or world) and plain item data.
 
-## Sister modules
+## Repository layout
 
-Loot Shelf is one of the Open Roll 5e modules for Foundry VTT. Each installs and works on its own and
-none needs another; together they cover the table from the fog of war to the loot. The rest of the family:
+```
+module.json                    the Foundry manifest
+scripts/
+  lootshelf.js                 the module's entry point and API
+  container.js, merchant.js    what a chest and a shop are: flags, configuration, stock
+  container-sheet.js, merchant-sheet.js, sheets.js
+                               the players' views, built on dnd5e's own inventory
+  transfer.js                  takes, buys and sales, carried out on the GM's client
+  receipts.js                  the chat receipts
+  canvas-drop.js               an item dropped on the map becomes a chest
+  config.js                    the Loot Shelf: Configure dialog
+styles/  templates/            the sheets, the buttons and the dialogs
+tools/
+  verify-lootshelf.mjs         the live suite: chests, shops, takes, buys and sales
+  verify-loot-drops.mjs        the live suite for canvas drops
+  verify-receipt-settings.mjs  the live suite for the receipt setting shared with Party Stash
+design.md                      what was decided while building
+```
+
+## Development
+
+There is no build step: the module is plain ES modules loaded straight from `scripts/`. The live
+suites run against the local sandbox through the house MCP repo (`fvtt-mcp-dnd5e`, a `file:` dev
+dependency beside this one); run `npm install` once. Releases: bump `version` and the `download`
+URL in `module.json` together, tag `vX.Y.Z`, and publish a zip of `module.json`, `README.md`,
+`LICENSE`, `scripts/`, `styles/` and `templates/` with the manifest as a GitHub release.
+
+<!-- openroll5e:family -->
+## Part of Open Roll 5e
+
+Loot Shelf is one of the Open Roll 5e modules for Foundry VTT, a suite built for one D&D 5e table and
+shared. Each module installs and works on its own and none needs another; together they cover the
+table from the fog of war to the loot. The other modules:
 
 - [Open Roll 5e: Autoexplore](https://github.com/Txpple/fvtt-mod-autoexplore): lets a scene start fully explored, so the whole map shows through the fog of war while tokens still need line of sight.
 - [Open Roll 5e: Battle Flow](https://github.com/Txpple/fvtt-mod-battleflow): combat automation for dnd5e 2024 rules: a hit rolls and applies its own damage, saves resolve themselves, reactions hold, and concentration is tracked. Every rule that touches a fight in the 2024 core books, Heroes of Faerûn, Arcana Unleashed and Ravenloft: The Horrors Within.
@@ -124,6 +155,15 @@ none needs another; together they cover the table from the fog of war to the loo
 - [Open Roll 5e: Open Server](https://github.com/Txpple/fvtt-mod-openserver): for hosted worlds: clears the startup pause so players can play before the GM arrives, and gives any user a landing scene of their own.
 - [Open Roll 5e: Party Stash](https://github.com/Txpple/fvtt-mod-partystash): makes a dnd5e Group actor's inventory a working party stash: drags move instead of copying, coin moves through a dialog, and every transfer posts a receipt.
 - [Open Roll 5e: Soundscape](https://github.com/Txpple/fvtt-mod-soundscape): background sound for scenes: random one-shots with silence between them, seamless crossfaded loops, day and night gating, and quiet during combat.
+
+Three MCP servers for [Claude Code](https://claude.com/claude-code) complete the suite:
+
+- [fvtt-mcp-dnd5e](https://github.com/Txpple/fvtt-mcp-dnd5e): builds D&D 5e content in a live Foundry world from Claude Code: a stat block becomes a complete NPC, a map image a walled and lit scene, an adventure its journals, tables and handouts.
+- [fvtt-mcp-imagegen](https://github.com/Txpple/fvtt-mcp-imagegen): makes the art with Google's Gemini image models: icons, tokens, props, portraits, illustrations and battlemap restyles, grounded in what the world already shows.
+- [fvtt-mcp-sessionscribe](https://github.com/Txpple/fvtt-mcp-sessionscribe): turns a session's Discord recording and Foundry chat log into its record: a speaker-labelled transcript, a player recap, a combat report and GM notes.
+
+How they fit together is mapped in [fvtt-suite-openroll5e](https://github.com/Txpple/fvtt-suite-openroll5e).
+<!-- /openroll5e:family -->
 
 ## License
 
