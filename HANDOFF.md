@@ -24,6 +24,8 @@ workaround exists — read them before changing any of the areas below.
 | 1.2.2 | 2026-09-23 | Loot moves into bags instead of duplicating; shop goods can't be bagged |
 | 1.2.3 | 2026-09-23 | Verified on dnd5e 6.0.5; no code change |
 | 1.2.4 | 2026-09-23 | The GM's eye no longer repeats on expanded activity rows |
+| 1.3.0 | 2026-10-02 | Renamed Open Roll 5e: Loot Shelf; README rewritten for a public audience |
+| 1.3.1 | 2026-10-10 | Verified on dnd5e 6.0.6 / Foundry 14.369; no code change |
 
 ## Code map
 
