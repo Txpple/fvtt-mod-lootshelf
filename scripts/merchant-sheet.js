@@ -28,6 +28,7 @@ import {
 } from "./transfer.js";
 
 import { trimSheetChrome, canReachActor, warnOutOfReach } from "./sheets.js";
+import { log } from "./family.js";
 
 export { MERCHANT_SHEET_ID } from "./sheets.js";
 
@@ -36,7 +37,7 @@ Hooks.once("init", () => {
   const DocumentSheetConfig =
     foundry.applications?.apps?.DocumentSheetConfig ?? globalThis.DocumentSheetConfig;
   if (!Base || !DocumentSheetConfig?.registerSheet) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet or DocumentSheetConfig not found — `
+    log.error(`dnd5e BaseActorSheet or DocumentSheetConfig not found — `
       + "merchant shelf disabled; merchants fall back to the default actor sheet.");
     return;
   }
@@ -282,7 +283,7 @@ Hooks.once("init", () => {
       try {
         return await super.render(options, _options);
       } catch (err) {
-        console.error(`${MODULE_ID} | merchant shelf render failed; falling back to the `
+        log.error(`merchant shelf render failed; falling back to the `
           + "system sheet", err);
         ui.notifications.error(
           `Loot Shelf: the merchant shelf failed to render (${err.message}). `

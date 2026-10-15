@@ -16,13 +16,18 @@
  *      mutations go through the transfer kernel (transfer.js): a GM-elect proxy on plain
  *      `game.socket` that re-validates ownership, stock, and price GM-side.
  *
+ * Every buy, sale and take posts one receipt line to chat, and a GM can revert the line with
+ * one click (the item back, the coin back). The elect, the receipt and the logger are the
+ * Open Roll 5e kit's, in scripts/kit/ (byte-identical across the family; family.js holds
+ * this module's instances of them).
+ *
  * No dependencies, no bundled UI runtime, no Item Piles compat. Item copies carry system
  * data verbatim except attuned/equipped/container, and `system.attunement` is never
  * touched — see design.md ("Lineage") for why that sentence is the whole reason this
  * module exists.
  *
- * Public API (MCP-friendly by construction — the MCP bridge, fvtt-mcp-dnd5e, drives these
- * directly):
+ * Public API, for macros and other modules (By the Books' companions use
+ * `createLootContainer`):
  *
  *   const api = game.modules.get("fvtt-mod-lootshelf").api;
  *   await api.createMerchant({ name, img, items: [uuid|itemData, ...], priceModifier,
@@ -35,10 +40,11 @@
  *   await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
  *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
  *   await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
+ *   await api.revertReceipt(messageOrId, line);  // GM only: what the Revert button does
  *   api.priceInCopper(item);     api.formatCopper(copper);
  */
 
-import { MODULE_ID, gmRequest, priceInCopper, formatCopper } from "./transfer.js";
+import { MODULE_ID, gmRequest, priceInCopper, formatCopper, receipts } from "./transfer.js";
 import "./container-sheet.js";
 import "./merchant-sheet.js";
 import "./canvas-drop.js";
@@ -58,6 +64,9 @@ Hooks.once("init", () => {
     purchase: payload => gmRequest("purchase", payload),
     sell: payload => gmRequest("sell", payload),
     transferItem: payload => gmRequest("transferItem", payload),
+    // receipts: ask the elect to revert one line of a receipt (GM only), as the button does
+    revertReceipt: (message, line = 0) =>
+      receipts.requestRevert(typeof message === "string" ? game.messages.get(message) : message, line),
     // helpers
     priceInCopper, formatCopper
   };

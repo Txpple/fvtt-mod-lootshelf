@@ -26,6 +26,7 @@ import { MODULE_ID, stockItems } from "./transfer.js";
 import { MERCHANT_SHEET_ID, sheetClassUpdate } from "./sheets.js";
 import { isContainer } from "./container.js";
 import { configure } from "./config.js";
+import { log } from "./family.js";
 
 /* -------------------------------------------------- */
 /*  Flags & setup API                                 */
@@ -99,7 +100,7 @@ function refreshBuyerPurse(actor) {
     try {
       if (isMerchant(app?.document) && app.buyer === actor) app.render();
     } catch (err) {
-      console.error(`${MODULE_ID} | shelf refresh failed`, err);
+      log.error(`shelf refresh failed`, err);
     }
   }
 }
@@ -121,7 +122,7 @@ Hooks.once("setup", () => {
   const proto = CONFIG.Token?.objectClass?.prototype;
   const orig = proto?._canView;
   if (!orig) {
-    console.error(`${MODULE_ID} | Token#_canView not found — players will not be able to `
+    log.error(`Token#_canView not found — players will not be able to `
       + "open shops or chests they lack permission on; grant ownership as a workaround.");
     return;
   }
@@ -130,7 +131,7 @@ Hooks.once("setup", () => {
       const actor = this.actor;
       if (isMerchant(actor) || isContainer(actor)) return true;
     } catch (err) {
-      console.error(`${MODULE_ID} | token view check failed`, err);
+      log.error(`token view check failed`, err);
     }
     return orig.call(this, user, event);
   };
@@ -155,7 +156,7 @@ Hooks.once("setup", () => {
   const Base = globalThis.dnd5e?.applications?.actor?.BaseActorSheet;
   const orig = Base?.prototype?._onDropCreateItems;
   if (!orig) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropCreateItems not found — `
+    log.error(`dnd5e BaseActorSheet#_onDropCreateItems not found — `
       + "players may be able to drag goods out of a shop without paying.");
     return;
   }
@@ -168,7 +169,7 @@ Hooks.once("setup", () => {
         if (!items.length) return [];
       }
     } catch (err) {
-      console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+      log.error(`shop drag-out check failed`, err);
     }
     return orig.call(this, event, items, behavior);
   };
@@ -179,7 +180,7 @@ Hooks.once("setup", () => {
     try {
       if (isShopGood(item, this.inventorySource)) return void ui.notifications.warn(SHOP_WARNING);
     } catch (err) {
-      console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+      log.error(`shop drag-out check failed`, err);
     }
     return origBag.call(this, event, item, container);
   };
@@ -192,7 +193,7 @@ Hooks.on("dnd5e.dropItemSheetData", (bag, _sheet, data) => {
     ui.notifications.warn(SHOP_WARNING);
     return false;
   } catch (err) {
-    console.error(`${MODULE_ID} | shop drag-out check failed`, err);
+    log.error(`shop drag-out check failed`, err);
   }
 });
 
@@ -209,7 +210,7 @@ Hooks.once("setup", () => {
   const item = globalThis.dnd5e?.applications?.item ?? {};
   const classes = [item.ItemSheet5e, item.ContainerSheet].filter(c => c?.prototype);
   if (!classes.length) {
-    console.error(`${MODULE_ID} | dnd5e item sheet classes not found — players will get `
+    log.error(`dnd5e item sheet classes not found — players will get `
       + "\"insufficient privileges\" when opening goods in a shop or chest.");
     return;
   }
@@ -229,7 +230,7 @@ Hooks.once("setup", () => {
           const parent = this.document?.parent;
           if (parent instanceof Actor && (isMerchant(parent) || isContainer(parent))) return true;
         } catch (err) {
-          console.error(`${MODULE_ID} | item visibility check failed`, err);
+          log.error(`item visibility check failed`, err);
         }
         return orig ? orig.call(this) : true;
       }

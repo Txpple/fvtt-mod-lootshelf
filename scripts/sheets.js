@@ -12,6 +12,7 @@
  */
 
 import { MODULE_ID } from "./transfer.js";
+import { log } from "./family.js";
 
 export const CONTAINER_SHEET_ID = `${MODULE_ID}.LootContainerSheet`;
 export const MERCHANT_SHEET_ID = `${MODULE_ID}.MerchantShelfSheet`;
@@ -133,7 +134,7 @@ export function canReachActor(actor) {
       });
     });
   } catch (err) {
-    console.error(`${MODULE_ID} | reach check failed`, err);
+    log.error(`reach check failed`, err);
     return true; // never let a broken check be the thing that locks a player out
   }
 }

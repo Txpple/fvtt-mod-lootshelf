@@ -1,11 +1,11 @@
-# Loot Shelf — handoff (v1.2.4, 2026-09-23)
+# Loot Shelf — handoff (v1.3.1, 2026-10-10)
 
-**v1.2.4 is released and deployed to the Greenrest prod world.** It stops the shelf's
-button columns (the GM's eye, Buy, Take) from repeating on an expanded item's activity rows;
-see landmine 2. `main` is the only branch and releases are committed straight to it. Prod
-and the local sandbox both run **Foundry 14.368 + dnd5e 6.0.5**. Every flow has been
-play-tested from a real player client, not only from a GM session, and nothing is known to
-be broken.
+**v1.3.1 is the current release**: verified on dnd5e 6.0.6 / Foundry 14.369, no code change
+from 1.3.0 (the rename to Open Roll 5e: Loot Shelf). `main` is the only long-lived branch.
+Work on `main` after it: the Open Roll 5e kit (`scripts/kit/`: the elect, the receipt, the
+logger), receipts that carry what moved and a GM's one-click revert, and the Biome and Vitest
+gate (`npm run verify`). Every flow up to 1.2.4 was play-tested from a real player client, not
+only from a GM session.
 
 What the module does at the table is in the [README](README.md). Its scope is in
 [design.md](design.md), which is binding: when in doubt, the answer that keeps Loot Shelf
@@ -33,7 +33,13 @@ workaround exists — read them before changing any of the areas below.
   `purchase`, `sell`, `takeFromContainer`, `takeCurrencyFromContainer`, `transferItem`.
   Every op re-validates ownership, stock and price GM-side; a client never names its own
   number. `canReceive` lets a player deliver into a dnd5e group actor they belong to (the
-  party stash). The audit line and the receipt-visibility setting live here too.
+  party stash). The receipts live here too: each op but `transferItem` posts one line with
+  its `moves`, every write rides the kit's echo marker, and `revertLine` reverses a line on
+  the elect.
+- **`family.js`, `kit/`** — the Open Roll 5e kit (byte-identical across the family; the
+  suite's `templates/kit/` is the source and `tools/kit-sync.mjs` the copier): `elect.js`
+  (the active GM in its leading window, never before ready), `receipt.js`, `log.js`.
+  `family.js` holds this module's logger and elect. Never edit `kit/` here.
 - **`container.js`** — container flags, the ephemeral cleanup, and the fixes for dnd5e's
   bag and inventory drop paths (see landmine 3).
 - **`container-sheet.js`, `merchant-sheet.js`** — `BaseActorSheet` subclasses built on the
@@ -73,7 +79,8 @@ workaround exists — read them before changing any of the areas below.
   complete shopper and looter. When the owner asks for testing to be *hosted* in a browser,
   the assistant joins as **DM Assistant** (the owner types the password) and accepts that
   this kicks the bridge.
-- **Only `game.users.activeGM` answers socket ops** — the highest-role active GM, not
+- **Only the elect answers socket ops** — `game.users.activeGM` (the highest-role active GM, then
+  the lower id), in its leading window; not
   necessarily the human. After a deploy every GM client must reload or ops fail with
   `unknown operation "<op>"`. Check `game.users.activeGM?.name` before blaming the code.
 - **The kernel grants before it decrements**, so when asserting a take or a sale, wait on

@@ -32,6 +32,7 @@
 
 import { MODULE_ID, stockItems, gmRequest } from "./transfer.js";
 import { CONTAINER_SHEET_ID, sheetClassUpdate, sheetUnset } from "./sheets.js";
+import { elect, log } from "./family.js";
 
 /* -------------------------------------------------- */
 /*  Flags & state                                     */
@@ -44,14 +45,15 @@ export function isContainer(actor) {
 // Adopt pre-v0.2 containers onto the container sheet at startup — but only ones whose
 // core sheet flag is entirely unset, so a sheet the GM explicitly picked (including an
 // explicit reset to the system default, which stores "") is never overridden. One client
-// does the writing, for the same reason the transfer kernel elects one: every GM issuing
-// the same update is pointless traffic and a race for no gain.
-Hooks.once("ready", () => {
-  if (game.users.activeGM !== game.user) return;
+// does the writing, the kit's elect, for the same reason the transfer kernel answers on it
+// alone: every GM client issuing the same update is pointless traffic and a race for no
+// gain. It runs when this client becomes the elect, so an elect that arrives later adopts
+// what the last one left; the update is a no-op for an actor already adopted.
+elect.onElected(() => {
   for (const actor of game.actors) {
     if (!isContainer(actor) || !sheetUnset(actor)) continue;
     actor.update(sheetClassUpdate(actor, actor.flags?.[MODULE_ID] ?? {}))
-      .catch(err => console.error(`${MODULE_ID} | container sheet adoption failed`, err));
+      .catch(err => log.error("container sheet adoption failed", err));
   }
 });
 
@@ -127,7 +129,7 @@ function containerVerdict(sheet, _event, data) {
 function installContainerMoveFix(Base) {
   const orig = Base?.prototype?._onDropCreateItems;
   if (!orig) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropCreateItems not found — `
+    log.error(`dnd5e BaseActorSheet#_onDropCreateItems not found — `
       + "container drag-out will duplicate items on dnd5e builds that need the fix.");
     return;
   }
@@ -139,7 +141,7 @@ function installContainerMoveFix(Base) {
         sources = (items ?? []).filter(i => i instanceof Item && isContainer(i.parent));
       }
     } catch (err) {
-      console.error(`${MODULE_ID} | container move check failed`, err);
+      log.error(`container move check failed`, err);
     }
     if (!sources.length) return orig.call(this, event, items, behavior);
 
@@ -165,7 +167,7 @@ async function deleteMovedSource(source) {
   try {
     await source.delete({ deleteContents: true });
   } catch (err) {
-    console.error(`${MODULE_ID} | container move: deleting the source item failed; `
+    log.error(`container move: deleting the source item failed; `
       + "the item may now exist in both places", err);
     ui.notifications.warn(
       `Loot Shelf: ${source.name} was copied but could not be removed from `
@@ -214,7 +216,7 @@ async function takeViaKernel(source, recipient, bag = null) {
 function installContainerBagFix(Base) {
   const orig = Base?.prototype?._onDropItemContainer;
   if (!orig) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_onDropItemContainer not found — `
+    log.error(`dnd5e BaseActorSheet#_onDropItemContainer not found — `
       + "dragging loot onto a bag may duplicate it.");
     return;
   }
@@ -224,7 +226,7 @@ function installContainerBagFix(Base) {
       if ((event?._behavior === "move") && (item instanceof Item) && isContainer(item.parent)
         && (item.parent !== this.inventorySource)) source = item;
     } catch (err) {
-      console.error(`${MODULE_ID} | container bag-drop check failed`, err);
+      log.error(`container bag-drop check failed`, err);
     }
     if (!source) return orig.call(this, event, item, container);
 
@@ -269,10 +271,10 @@ Hooks.on("dnd5e.dropItemSheetData", (bag, _sheet, data) => {
     (async () => {
       if (bag.system.canDropContents && !(await bag.system.canDropContents())) return;
       await takeViaKernel(source, bag.actor, bag);
-    })().catch(err => console.error(`${MODULE_ID} | taking loot into a bag failed`, err));
+    })().catch(err => log.error(`taking loot into a bag failed`, err));
     return false;
   } catch (err) {
-    console.error(`${MODULE_ID} | bag-sheet drop check failed`, err);
+    log.error(`bag-sheet drop check failed`, err);
   }
 });
 
@@ -282,7 +284,7 @@ Hooks.once("setup", () => {
   installContainerBagFix(Base);
   const orig = Base?.prototype?._defaultDropBehavior;
   if (!orig) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet#_defaultDropBehavior not found — `
+    log.error(`dnd5e BaseActorSheet#_defaultDropBehavior not found — `
       + "container move semantics disabled (dnd5e 5.x required).");
     return;
   }
@@ -294,7 +296,7 @@ Hooks.once("setup", () => {
       if (verdict === "move") return "move";
       if (verdict === "block") return "none"; // no-drop cursor; the drop never lands
     } catch (err) {
-      console.error(`${MODULE_ID} | drop-behavior check failed`, err);
+      log.error(`drop-behavior check failed`, err);
     }
     return fallback;
   };

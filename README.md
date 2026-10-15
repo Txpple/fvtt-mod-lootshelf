@@ -13,11 +13,12 @@ goods back, while every change is checked and carried out on the GM's client.
 - **A shop is the shopkeeper's own sheet, wearing prices.** Players browse the stock, buy with a
   **Buy** button, and drag their own goods onto the shelf to sell them back.
 - **No ownership is granted.** Looking is open to everyone; taking, buying and selling go to the
-  GM's client, which checks ownership, stock and the price itself. A GM must be connected.
+  GM's client, which checks ownership, stock and the price itself. A GM must be connected. The
+  GM's client takes the request's sender at its word, which suits a table of trusted players.
 - **Drags out of a chest move the item** instead of copying it, so loot never ends up in two
   places. Goods only leave a shop by being bought.
-- **Every buy, sale and take posts a receipt** to chat, to the whole table or to the participants
-  and the DMs.
+- **Every buy, sale and take posts a receipt** to chat, and a GM can revert it with one click:
+  the item back, the coin back.
 
 Its companion is [Open Roll 5e: Party Stash](https://github.com/Txpple/fvtt-mod-partystash): Party
 Stash owns the shared party inventory, Loot Shelf owns loot on the ground and goods for sale.
@@ -77,6 +78,22 @@ pay into the party's purse instead.
 
 Players buy and take with their assigned character, or with a token they own and have selected.
 
+## Receipts
+
+Every buy, sale and take posts one line to chat under the alias *Loot Shelf*, authored by the
+player who made it: who bought, sold or took what, from whom, for how much, and whether a chest
+was picked clean. A sale paid into a party's purse is still one line; Party Stash, when it is
+active, does not post a second one for the same coin.
+
+The line also carries what moved: the item, how many and where it went, and each purse's change
+coin by coin. A GM sees a **Revert** button on it. Reverting puts things back as they were before
+the line: the goods return to the shelf or the chest they came from, every purse gives back what
+it gained and gets back what it paid, and a chest that vanished when it was emptied returns to the
+map. Everything is checked before anything changes: if the buyer no longer holds the item, or a
+purse no longer holds the coin, nothing moves and the line says why; sort that out and press it
+again. One GM client carries out every revert, so two GMs pressing at once revert once. A
+reverted line is struck through for everyone.
+
 ## Settings
 
 *Game Settings → Configure Settings → Open Roll 5e: Loot Shelf.*
@@ -87,11 +104,12 @@ Players buy and take with their assigned character, or with a token they own and
 | Drop items on the map to make loot | on | Off restores the stock behavior for canvas drops. |
 | Receipts | broadcast | Who reads the chat line for each buy, sale and take. |
 
-**Receipts** is a choice of two, and Party Stash offers the same one:
+**Receipts** is a choice of three, and Party Stash offers the same one:
 
 - **Broadcast receipts to the server** (default): posted to the chat log for the whole table.
-- **Receipts to the transaction participants and the DMs**: whispered to whoever bought, sold, was
-  paid or took the loot, and to the DMs. Assistant DMs count as DMs.
+- **Receipts to the participants and the DMs**: whispered to whoever bought, sold, was paid or
+  took the loot, and to the DMs. Assistant DMs count as DMs.
+- **Receipts to the DMs only**: whispered to the DMs alone.
 
 ## Scripting
 
@@ -106,10 +124,12 @@ api.openShelf(actor);   api.configure(actor);   api.isMerchant(actor);   api.isC
 await api.purchase({ merchantUuid, buyerUuid, itemId, quantity });
 await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
 await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
+await api.revertReceipt(messageOrId, line);   // GM only: what the Revert button does
 api.priceInCopper(item);   api.formatCopper(copper);
 ```
 
-`items` accepts Item uuids (compendium or world) and plain item data.
+`items` accepts Item uuids (compendium or world) and plain item data. `purchase`, `sell` and the
+takes answer with the receipt's message id as `receipt`; `transferItem` posts no receipt.
 
 ## Repository layout
 
@@ -117,14 +137,19 @@ api.priceInCopper(item);   api.formatCopper(copper);
 module.json                    the Foundry manifest
 scripts/
   lootshelf.js                 the module's entry point and API
+  family.js                    this module's logger and elect, from the kit
+  kit/                         the Open Roll 5e kit: elect.js, receipt.js, log.js, the same
+                               bytes in every module that holds it (the suite keeps them)
   container.js, merchant.js    what a chest and a shop are: flags, configuration, stock
   container-sheet.js, merchant-sheet.js, sheets.js
                                the players' views, built on dnd5e's own inventory
-  transfer.js                  takes, buys and sales, carried out on the GM's client
-  receipts.js                  the chat receipts
+  transfer.js                  takes, buys and sales, carried out on the GM's client, their
+                               receipts and the revert
+  receipts.js                  the Receipts setting's radio group
   canvas-drop.js               an item dropped on the map becomes a chest
   config.js                    the Loot Shelf: Configure dialog
 styles/  templates/            the sheets, the buttons and the dialogs
+tests/                         the unit tests (Vitest): the kit, the coin arithmetic
 tools/
   verify-lootshelf.mjs         the live suite: chests, shops, takes, buys and sales
   verify-loot-drops.mjs        the live suite for canvas drops
@@ -134,7 +159,8 @@ design.md                      what was decided while building
 
 ## Development
 
-There is no build step: the module is plain ES modules loaded straight from `scripts/`. The live
+There is no build step: the module is plain ES modules loaded straight from `scripts/`.
+`npm run verify` is the gate: Biome and the unit tests. The live
 suites run against the local sandbox through the house MCP repo (`fvtt-mcp-dnd5e`, a `file:` dev
 dependency beside this one); run `npm install` once. Releases: bump `version` and the `download`
 URL in `module.json` together, tag `vX.Y.Z`, and publish a zip of `module.json`, `README.md`,

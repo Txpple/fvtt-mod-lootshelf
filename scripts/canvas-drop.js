@@ -24,6 +24,7 @@
 
 import { MODULE_ID } from "./transfer.js";
 import { createLootContainer } from "./container.js";
+import { log } from "./family.js";
 
 const SETTING = "canvasDrop";
 const FOLDER_NAME = "Loot Shelf";
@@ -63,7 +64,7 @@ async function lootFolder() {
     const folder = await Folder.implementation.create({ name: FOLDER_NAME, type: "Actor" });
     return folder?.id ?? null;
   } catch (err) {
-    console.error(`${MODULE_ID} | could not create the "${FOLDER_NAME}" folder`, err);
+    log.error(`could not create the "${FOLDER_NAME}" folder`, err);
     return null; // the container still gets made, just at the directory root
   }
 }
@@ -82,7 +83,7 @@ function tokenPosition(scene, point, tokenDoc) {
   try {
     return scene.grid.getSnappedPoint(topLeft, { mode: CONST.GRID_SNAPPING_MODES.TOP_LEFT_VERTEX });
   } catch (err) {
-    console.error(`${MODULE_ID} | grid snapping failed; dropping unsnapped`, err);
+    log.error(`grid snapping failed; dropping unsnapped`, err);
     return topLeft;
   }
 }
@@ -129,12 +130,12 @@ Hooks.on("dropCanvasData", (canvas, data) => {
     const scene = canvas?.scene;
     if (!scene) return;
     spawnLoot(scene, data).catch(err => {
-      console.error(`${MODULE_ID} | leaving loot on the canvas failed`, err);
+      log.error(`leaving loot on the canvas failed`, err);
       ui.notifications.error(
         `Loot Shelf: that item could not be left on the ground (${err.message}).`);
     });
     return false;
   } catch (err) {
-    console.error(`${MODULE_ID} | canvas drop check failed`, err);
+    log.error(`canvas drop check failed`, err);
   }
 });

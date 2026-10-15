@@ -288,8 +288,8 @@ try {
     assert(r.scope === 'world', `${id}: world-scoped (got ${r.scope})`);
     assert(r.default === 'public', `${id}: defaults to public (got ${r.default})`);
     assert(
-      sameSet(r.choices ?? [], ['public', 'participants']),
-      `${id}: exactly two choices (got ${JSON.stringify(r.choices)})`
+      sameSet(r.choices ?? [], ['public', 'participants', 'gm']),
+      `${id}: the kit's three choices (got ${JSON.stringify(r.choices)})`
     );
   }
 
@@ -299,11 +299,11 @@ try {
   for (const [id, s] of Object.entries(sheet)) {
     assert(s.hasSelect && s.selectHidden, `${id}: the real <select> is present but hidden`);
     assert(
-      sameSet(s.radioValues, ['public', 'participants']),
-      `${id}: two radios (got ${JSON.stringify(s.radioValues)})`
+      sameSet(s.radioValues, ['public', 'participants', 'gm']),
+      `${id}: three radios (got ${JSON.stringify(s.radioValues)})`
     );
     assert(
-      s.notes.length === 2 && s.notes.every(n => n.length > 40),
+      s.notes.length === 3 && s.notes.every(n => n.length > 40),
       `${id}: each option carries its consequence note`
     );
     assert(

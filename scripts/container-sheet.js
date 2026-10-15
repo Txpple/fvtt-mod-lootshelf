@@ -28,6 +28,7 @@ import {
   MODULE_ID, isPhysical, priceInCopper, formatCopper, totalCopper, gmRequest
 } from "./transfer.js";
 import { trimSheetChrome, canReachActor, warnOutOfReach } from "./sheets.js";
+import { log } from "./family.js";
 
 export { CONTAINER_SHEET_ID } from "./sheets.js";
 
@@ -36,7 +37,7 @@ Hooks.once("init", () => {
   const DocumentSheetConfig =
     foundry.applications?.apps?.DocumentSheetConfig ?? globalThis.DocumentSheetConfig;
   if (!Base || !DocumentSheetConfig?.registerSheet) {
-    console.error(`${MODULE_ID} | dnd5e BaseActorSheet or DocumentSheetConfig not found — `
+    log.error(`dnd5e BaseActorSheet or DocumentSheetConfig not found — `
       + "container sheet disabled; containers fall back to the default actor sheet.");
     return;
   }
@@ -336,7 +337,7 @@ Hooks.once("init", () => {
         const value = input.value.trim();
         this.actor.setFlag(MODULE_ID, "container.note", value)
           .catch(err => {
-            console.error(`${MODULE_ID} | saving the container note failed`, err);
+            log.error(`saving the container note failed`, err);
             ui.notifications.error("Loot Shelf: that note could not be saved.");
           });
       });
@@ -361,7 +362,7 @@ Hooks.once("init", () => {
       try {
         return await super.render(options, _options);
       } catch (err) {
-        console.error(`${MODULE_ID} | container sheet render failed; falling back to the `
+        log.error(`container sheet render failed; falling back to the `
           + "system sheet", err);
         ui.notifications.error(
           `Loot Shelf: the container sheet failed to render (${err.message}). `

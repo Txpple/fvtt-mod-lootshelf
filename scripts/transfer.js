@@ -20,13 +20,24 @@
  *     giving change back in gp/sp/cp — no silent re-denomination of a player's purse.
  *
  * Players can't write to a merchant or an unowned chest, so mutations ride a GM proxy:
- * plain `game.socket` on `module.fvtt-mod-lootshelf`, handled only by the client whose
- * user is `game.users.activeGM` (the GM-elect pattern — no socketlib). The GM handler
- * re-validates everything server-side: flags, ownership, stock, and above all the PRICE —
- * a client never gets to name its own number.
+ * plain `game.socket` on `module.fvtt-mod-lootshelf`, handled only by the elect (the kit's
+ * elect.js: the active GM, in its leading window, so a GM with the game open in two windows
+ * answers once — no socketlib). The GM handler re-validates everything server-side: flags,
+ * ownership, stock, and above all the PRICE — a client never gets to name its own number.
+ * The requester is the `userId` the sending client stamps on the request, which a table of
+ * trusted players can live with: the ownership and price checks still run as that user.
+ *
+ * Every buy, sale and take posts one receipt line (the kit's receipt.js), and the line
+ * carries what moved, so a GM can put it back with one click: the item back where it came
+ * from, the coin back in the purses it left, an emptied chest back on the map. Every write
+ * here is made under the receipt's echo marker, so Party Stash, hearing coin or goods land
+ * in a group actor, does not post a second line for the same move.
  */
 
-export const MODULE_ID = "fvtt-mod-lootshelf";
+import { createReceipts, html, MODE_SETTING, MODES } from "./kit/receipt.js";
+import { elect, log, MODULE_ID } from "./family.js";
+
+export { MODULE_ID };
 const SOCKET = `module.${MODULE_ID}`;
 const REQUEST_TIMEOUT = 15000;
 
@@ -39,7 +50,7 @@ export const RATES = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
 const ASCENDING = ["cp", "sp", "ep", "gp", "pp"];
 
 /** A sanitized copy of an actor's currency object (non-negative integers, all five keys). */
-function coins(currency) {
+export function coins(currency) {
   const out = {};
   for (const c of ASCENDING) out[c] = Math.max(0, Math.floor(currency?.[c] ?? 0));
   return out;
@@ -117,6 +128,34 @@ export function planDeduction(currency, cost) {
   return c;
 }
 
+/** How a purse changed, per denomination, signed: `after` minus `before`. */
+export function purseDelta(before, after) {
+  const b = coins(before);
+  const a = coins(after);
+  const out = {};
+  for (const k of ASCENDING) out[k] = a[k] - b[k];
+  return out;
+}
+
+/**
+ * The purse with a recorded change taken back out of it, or null when it can no longer
+ * cover that. Coins it gained go back as themselves while it still holds them; a shortfall
+ * in a denomination is paid out of the rest of the purse by `planDeduction`'s manners, so
+ * the value is exact and only the denominations it can no longer give back are converted.
+ */
+export function reverseDelta(purse, delta) {
+  const c = coins(purse);
+  let owed = 0;
+  for (const k of ASCENDING) {
+    c[k] -= Math.trunc(Number(delta?.[k]) || 0);
+    if (c[k] < 0) {
+      owed += -c[k] * RATES[k];
+      c[k] = 0;
+    }
+  }
+  return owed > 0 ? planDeduction(c, owed) : c;
+}
+
 /* -------------------------------------------------- */
 /*  Items — clean copy, stack merge, contents         */
 /* -------------------------------------------------- */
@@ -156,14 +195,14 @@ function findStack(target, item, container = null) {
 }
 
 /** Recursively copy a container item's contents onto `target`, under `containerId`. */
-async function copyContents(sourceContainer, target, containerId) {
+async function copyContents(sourceContainer, target, containerId, options = {}) {
   const contents = sourceContainer.system?.contents;
   if (!contents) return;
   for (const c of contents) {
     const data = cleanItemData(c);
     data.system.container = containerId;
-    const [created] = await target.createEmbeddedDocuments("Item", [data]);
-    if (c.type === "container") await copyContents(c, target, created.id);
+    const [created] = await target.createEmbeddedDocuments("Item", [data], options);
+    if (c.type === "container") await copyContents(c, target, created.id, options);
   }
 }
 
@@ -171,33 +210,34 @@ async function copyContents(sourceContainer, target, containerId) {
  * Create `quantity` of `item` on `target` (merging into an existing stack when possible)
  * and return the created or updated item. Does NOT touch the source — callers decrement
  * afterwards, so the copy always lands before anything is destroyed. `container` is the id
- * of a bag on `target` to put it in; the caller has already checked it is one.
+ * of a bag on `target` to put it in; the caller has already checked it is one. `options`
+ * ride on every write (the receipt's echo marker).
  */
-export async function grantItem(target, item, quantity = 1, { container = null } = {}) {
+export async function grantItem(target, item, quantity = 1, { container = null, options = {} } = {}) {
   if (item.type === "container") {
     const data = cleanItemData(item, 1);
     if (container) data.system.container = container;
-    const [created] = await target.createEmbeddedDocuments("Item", [data]);
-    await copyContents(item, target, created.id);
+    const [created] = await target.createEmbeddedDocuments("Item", [data], options);
+    await copyContents(item, target, created.id, options);
     return created;
   }
   const stack = findStack(target, item, container);
   if (stack) {
-    await stack.update({ "system.quantity": Math.floor(stack.system.quantity ?? 0) + quantity });
+    await stack.update({ "system.quantity": Math.floor(stack.system.quantity ?? 0) + quantity }, options);
     return stack;
   }
   const data = cleanItemData(item, quantity);
   if (container) data.system.container = container;
-  const [created] = await target.createEmbeddedDocuments("Item", [data]);
+  const [created] = await target.createEmbeddedDocuments("Item", [data], options);
   return created;
 }
 
 /** Remove `quantity` from a source item — delete the item when the stack runs out. */
-export async function decrementItem(item, quantity = 1) {
-  if (item.type === "container") return item.delete({ deleteContents: true });
+export async function decrementItem(item, quantity = 1, options = {}) {
+  if (item.type === "container") return item.delete({ ...options, deleteContents: true });
   const q = Math.floor(item.system.quantity ?? 1);
-  if (q - quantity > 0) return item.update({ "system.quantity": q - quantity });
-  return item.delete();
+  if (q - quantity > 0) return item.update({ "system.quantity": q - quantity }, options);
+  return item.delete(options);
 }
 
 /* -------------------------------------------------- */
@@ -220,7 +260,7 @@ Hooks.on("preCreateItem", (item, _data, _options, _userId) => {
     if (item.system?.schema?.fields?.equipped) update["system.equipped"] = false;
     if (!foundry.utils.isEmpty(update)) item.updateSource(update);
   } catch (err) {
-    console.error(`${MODULE_ID} | incoming-item normalization failed`, err);
+    log.error("incoming-item normalization failed", err);
   }
 });
 
@@ -233,7 +273,7 @@ const pending = new Map(); // request id -> {resolve, reject, timer}
 /** Resolve an actor from a uuid that may point at an Actor or a TokenDocument. */
 async function resolveActor(uuid) {
   if (!uuid) return null;
-  const doc = await fromUuid(uuid);
+  const doc = await fromUuid(uuid).catch(() => null);
   if (doc instanceof Actor) return doc;
   return doc?.actor instanceof Actor ? doc.actor : null;
 }
@@ -266,6 +306,8 @@ function isEmptied(actor) {
 
 /**
  * Take a looted-out container off the map — but only one that was never meant to persist.
+ * Returns what it removed, `[{ scene, data }]` (the scene's uuid, the token's own data), so
+ * the receipt can put the chest back where it stood; an empty list when nothing went.
  *
  * Gated on `container.ephemeral`, which is set by the canvas-drop gesture (canvas-drop.js)
  * and by `createLootContainer({ephemeral: true})`. A dropped-on-the-floor item is scenery
@@ -285,54 +327,42 @@ function isEmptied(actor) {
  * try. Only persisted, scene-embedded tokens count. Deletes are grouped per scene so a
  * container placed several times costs one call per scene rather than one per token.
  */
-async function removeEmptiedContainer(container) {
+async function removeEmptiedContainer(container, options = {}) {
   try {
-    if (!container.getFlag(MODULE_ID, "container")?.ephemeral) return false;
-    if (!isEmptied(container)) return false;
+    if (!container.getFlag(MODULE_ID, "container")?.ephemeral) return [];
+    if (!isEmptied(container)) return [];
     const tokens = container.isToken ? [container.token] : container.getDependentTokens();
     const byScene = new Map();
     for (const token of tokens) {
       if (!token?.id || !token.parent) continue;
       if (!byScene.has(token.parent)) byScene.set(token.parent, []);
-      byScene.get(token.parent).push(token.id);
+      byScene.get(token.parent).push(token);
     }
-    for (const [scene, ids] of byScene) await scene.deleteEmbeddedDocuments("Token", ids);
-    return byScene.size > 0;
+    const removed = [];
+    for (const [scene, list] of byScene) {
+      const data = list.map(t => t.toObject());
+      await scene.deleteEmbeddedDocuments("Token", list.map(t => t.id), options);
+      for (const d of data) removed.push({ scene: scene.uuid, data: d });
+    }
+    return removed;
   } catch (err) {
-    console.error(`${MODULE_ID} | removing the emptied container failed`, err);
-    return false; // the loot already changed hands; a stuck token is not worth throwing over
+    log.error("removing the emptied container failed", err);
+    return []; // the loot already changed hands; a stuck token is not worth throwing over
   }
 }
 
 /* -------------------------------------------------- */
-/*  Receipts — the audit line and who reads it        */
+/*  Receipts — one line per move, and its revert      */
 /* -------------------------------------------------- */
 
-export const RECEIPT_SETTING = "receiptVisibility";
-
-/**
- * The two delivery policies, in the order the settings sheet reads them (receipts.js turns
- * this into a radio group; the labels double as the `choices` of the stored setting).
- */
-export const RECEIPT_MODES = [
-  {
-    value: "public",
-    label: "Broadcast receipts to the server",
-    note: "Every buy, sale and haul is posted to the chat log for the whole table to read."
-  },
-  {
-    value: "participants",
-    label: "Receipts to the transaction participants and the DMs",
-    note: "Whispered to the players on either side of the transaction — whoever bought, sold, "
-      + "was paid, or took the loot — and to the DMs. Assistant DMs count as DMs here and see "
-      + "every receipt."
-  }
-];
+/** The world setting holding who reads a receipt; the choices are the kit's MODES. */
+export const RECEIPT_SETTING = MODE_SETTING;
+export const RECEIPT_MODES = MODES;
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, RECEIPT_SETTING, {
     name: "Receipts",
-    hint: "Who reads the audit line for a purchase, a sale, or loot taken from a chest.",
+    hint: "Who reads the receipt for a purchase, a sale, or loot taken from a chest.",
     scope: "world",
     config: true,
     type: String,
@@ -342,69 +372,141 @@ Hooks.once("init", () => {
 });
 
 /**
- * The whisper list for a receipt, or null to post it to the whole table.
+ * The receipts. Each is posted as the acting user (not as whichever GM client handled the
+ * socket request), so the line sits under the right person in chat; the speaker alias keeps
+ * it visibly a Loot Shelf line rather than something their character said. Public by
+ * default: a shared loot log is what settles "who picked up the potion?". PARTICIPANTS, for
+ * a whispered receipt, are the PERSONAL side of the move: the buyer, the seller, whoever
+ * the proceeds were paid to, whoever the loot went to. The SHARED vessel at the other end
+ * (the merchant, the chest) is never consulted for readers: a loot container can carry
+ * default player ownership, which would quietly turn every whisper back into a broadcast.
  *
- * "The DMs" means every user with the ASSISTANT role or above — what `User#isGM` answers and
- * `getWhisperRecipients("GM")` resolves — so an assistant DM is on every receipt. The setting
- * hint says so rather than leaving a co-DM to discover it by missing one.
- *
- * PARTICIPANTS are the PERSONAL side of the transaction: the buyer, the seller, whoever the
- * proceeds were paid to, whoever the loot went to — plus the acting user, who may be a GM
- * moving goods on a player's behalf. The SHARED vessel at the other end (the merchant, the
- * chest) is deliberately never consulted for recipients: a loot container can carry default
- * player ownership, which would quietly turn every whisper back into a broadcast. A party
- * stash CAN be a participant — sell-to-party routes coin there — and everyone who owns that
- * group actor is a genuine party to it, because the party's money moved.
- *
- * @param {User} [user]             The acting user.
- * @param {Actor[]} [participants]  The personal-side actors in the transaction.
- * @returns {string[]|null}         User ids to whisper to, or null for a public message.
+ * Each line's `moves`, as this kernel records them and `revertLine` reads them back:
+ *   { kind: "item", from, to, item, qty, name, type, img }
+ *       `qty` of the goods went from actor `from` (null: an infinite shop's bottomless stock)
+ *       to actor `to`, where they are the item `item` (a stack they merged into, or a new row).
+ *   { kind: "coin", actor, delta }
+ *       actor `actor`'s purse changed by `delta`, signed per denomination.
+ *   { kind: "tokens", actor, tokens: [{ scene, data }] }
+ *       the emptied chest `actor`'s tokens, taken off the map.
+ * Actors are uuids (a token's actor for an unlinked chest).
  */
-function receiptWhisper(user, participants = []) {
-  let mode = "public";
-  try {
-    mode = game.settings.get(MODULE_ID, RECEIPT_SETTING);
-  } catch {
-    return null; // not registered yet — a public line beats a lost one
-  }
-  if (mode !== "participants") return null;
+export const receipts = createReceipts(MODULE_ID, { elect, log, alias: "Loot Shelf", revert: revertLine });
 
-  const ids = new Set(ChatMessage.implementation.getWhisperRecipients("GM").map(u => u.id));
-  if (user?.id) ids.add(user.id);
-  for (const actor of participants) {
-    if (!(actor instanceof Actor)) continue;
-    for (const u of game.users) {
-      if (!ids.has(u.id) && actor.testUserPermission(u, "OWNER")) ids.add(u.id);
-    }
-  }
-  return [...ids];
+const itemMove = (from, to, granted, qty, source) => ({
+  kind: "item",
+  from: from?.uuid ?? null,
+  to: to.uuid,
+  item: granted?.id ?? null,
+  qty,
+  name: source.name,
+  type: source.type,
+  img: source.img
+});
+
+const coinMove = (actor, delta) => ({ kind: "coin", actor: actor.uuid, delta });
+
+/** Post one receipt line; resolves with the message's id, or null when it could not be posted. */
+async function postLine(line, moves, user, participants) {
+  const message = await receipts.post({
+    lines: [{ html: line, moves }],
+    acting: user?.id ?? null,
+    participants
+  });
+  return message?.id ?? null;
+}
+
+/** The goods a move left on `to`: the item it named, else a row of the same name and look. */
+function goodsOf(actor, move) {
+  const named = actor.items.get(move.item);
+  if (named && named.name === move.name) return named;
+  return actor.items.find(i => i.type === move.type && i.name === move.name && i.img === move.img) ?? null;
 }
 
 /**
- * Post an audit line.
- *
- * These were whispered to the GMs and the acting player, which made every buy, sale and
- * take invisible to everyone else — and a shared loot log is the point: it is what settles
- * "who picked up the potion?" without anyone having to remember. Public by the owner's call
- * on 2026-08-08, and since v1.2 that is the DEFAULT rather than the only option — the
- * Receipt Settings above put the choice back in the GM's hands.
- *
- * Authored as the acting user rather than as whichever GM client happened to handle the
- * socket request, so the line sits under the right person in chat. The speaker alias keeps
- * it visibly a Loot Shelf message rather than something their character said.
- *
- * @param {string} content          The line, already formatted.
- * @param {User} [user]             The acting user.
- * @param {Actor[]} [participants]  The personal-side actors in the transaction.
+ * Reverse one receipt line, on the elect (the kit's receipt.js calls it with the echo-marked
+ * `options`). Everything is checked before the first write: the goods still where the move
+ * left them, in the quantity it moved; every purse able to give back what it gained. Then
+ * an emptied chest goes back on the map (an unlinked chest's actor lives on its token), the
+ * purses that gain are paid, the goods go back where they came from (credit before debit, as
+ * every move here), and the purses that lose pay last. A failure after the first write says
+ * so: the line is then for a GM to check by hand.
  */
-function audit(content, user, participants = []) {
-  const whisper = receiptWhisper(user, participants);
-  ChatMessage.implementation.create({
-    content,
-    ...(user ? { author: user.id } : {}),
-    ...(whisper ? { whisper } : {}),
-    speaker: { alias: "Loot Shelf" }
-  }).catch(err => console.error(`${MODULE_ID} | audit message failed`, err));
+async function revertLine(line, { options = {} } = {}) {
+  const moves = Array.isArray(line?.moves) ? line.moves : [];
+  const tokenMoves = moves.filter(m => m.kind === "tokens");
+  const onTokens = new Set(tokenMoves.map(m => m.actor));
+
+  const scenes = [];
+  for (const m of tokenMoves) {
+    for (const { scene, data } of m.tokens ?? []) {
+      const doc = await fromUuid(scene).catch(() => null);
+      if (doc) scenes.push([doc, data]);
+    }
+  }
+
+  const items = [];
+  for (const m of moves.filter(x => x.kind === "item")) {
+    const to = await resolveActor(m.to);
+    if (!to) throw new Error(`the ${m.name} went to an actor that no longer exists`);
+    const goods = goodsOf(to, m);
+    if (!goods) throw new Error(`${to.name} no longer holds ${m.name}`);
+    const held = Math.floor(goods.system?.quantity ?? 1);
+    if (goods.type !== "container" && held < m.qty) {
+      throw new Error(`${to.name} holds ${held} × ${m.name}, not the ${m.qty} to give back`);
+    }
+    const from = m.from ? await resolveActor(m.from) : null;
+    if (m.from && !from && !onTokens.has(m.from)) {
+      throw new Error(`the ${m.name} came from an actor that no longer exists`);
+    }
+    items.push({ m, to, goods, from });
+  }
+
+  const purses = [];
+  const purseOf = async m => {
+    const actor = await resolveActor(m.actor);
+    if (!actor) throw new Error("a purse on this receipt belongs to an actor that no longer exists");
+    const after = reverseDelta(actor.system?.currency, m.delta);
+    if (!after) {
+      throw new Error(`${actor.name} no longer has the coin to give back `
+        + `(${formatPurse(totalCopper(actor.system?.currency))})`);
+    }
+    return { m, actor, after };
+  };
+  for (const m of moves.filter(x => x.kind === "coin")) {
+    purses.push(onTokens.has(m.actor) ? { m, actor: null, after: null } : await purseOf(m));
+  }
+
+  let wrote = false;
+  try {
+    for (const [scene, data] of scenes) {
+      await scene.createEmbeddedDocuments("Token", [data], { ...options, keepId: true });
+      wrote = true;
+    }
+    for (let i = 0; i < purses.length; i++) if (!purses[i].actor) purses[i] = await purseOf(purses[i].m);
+    for (const it of items) {
+      if (it.m.from && !it.from) it.from = await resolveActor(it.m.from);
+      if (it.m.from && !it.from) throw new Error(`the ${it.m.name} came from an actor that no longer exists`);
+    }
+    const gain = p => totalCopper(p.after) - totalCopper(p.actor.system?.currency);
+    for (const p of purses.filter(x => gain(x) >= 0)) {
+      await p.actor.update({ "system.currency": p.after }, options);
+      wrote = true;
+    }
+    for (const it of items) {
+      if (it.from) await grantItem(it.from, it.goods, it.m.qty, { options });
+      wrote = true;
+      await decrementItem(it.goods, it.m.qty, options);
+    }
+    for (const p of purses.filter(x => gain(x) < 0)) {
+      await p.actor.update({ "system.currency": p.after }, options);
+      wrote = true;
+    }
+  } catch (err) {
+    if (wrote) throw new Error(`the revert stopped partway (${err.message}); check the sheets by hand`);
+    throw err;
+  }
+  return { note: scenes.length ? "the chest is back on the map" : "" };
 }
 
 /** GM-side operation handlers. Every op re-validates permissions and prices itself. */
@@ -434,21 +536,33 @@ const OPS = {
     const paid = planDeduction(before, cost);
     if (!paid) throw new Error(`${buyer.name} can't afford ${formatCopper(cost)}.`);
 
+    const options = receipts.options();
     const name = item.name;
-    if (cost > 0) await buyer.update({ "system.currency": paid });
+    if (cost > 0) await buyer.update({ "system.currency": paid }, options);
+    let granted;
     try {
-      await grantItem(buyer, item, qty);
+      granted = await grantItem(buyer, item, qty, { options });
     } catch (err) {
-      if (cost > 0) await buyer.update({ "system.currency": before }).catch(() => {});
+      if (cost > 0) {
+        await buyer.update({ "system.currency": before }, options)
+          .catch(refund => log.error(`the refund to ${buyer.name} after a failed purchase did not land`, refund));
+      }
       throw err;
     }
+    const moves = [itemMove(cfg.infiniteStock ? null : merchant, buyer, granted, qty, item)];
+    if (cost > 0) moves.push(coinMove(buyer, purseDelta(before, paid)));
     if (!cfg.infiniteStock) {
-      await decrementItem(item, qty);
-      if (cost > 0) await merchant.update({ "system.currency": addCopper(merchant.system.currency, cost) });
+      await decrementItem(item, qty, options);
+      if (cost > 0) {
+        const till = coins(merchant.system.currency);
+        const after = addCopper(till, cost);
+        await merchant.update({ "system.currency": after }, options);
+        moves.push(coinMove(merchant, purseDelta(till, after)));
+      }
     }
-    audit(`<strong>${buyer.name}</strong> bought ${qty} × <em>${name}</em> from `
-      + `<strong>${merchant.name}</strong> for ${formatCopper(cost)}.`, user, [buyer]);
-    return { name, quantity: qty, cost };
+    const receipt = await postLine(html`<strong>${buyer.name}</strong> bought ${qty} × <em>${name}</em> from `
+      + html`<strong>${merchant.name}</strong> for ${formatCopper(cost)}.`, moves, user, [buyer]);
+    return { name, quantity: qty, cost, receipt };
   },
 
   async sell({ merchantUuid, sellerUuid, itemId, quantity = 1, payeeUuid = null }, user) {
@@ -482,28 +596,37 @@ const OPS = {
     // A finite shop pays out of its own purse and cannot buy what it can't afford. The
     // shelf caps the offered quantity by what the shopkeeper is holding, so reaching this
     // error normally means the purse moved between the offer and the confirmation.
+    const till = coins(merchant.system.currency);
     let merchantAfter = null;
     if (!cfg.infiniteStock && gain > 0) {
-      merchantAfter = planDeduction(merchant.system.currency, gain);
+      merchantAfter = planDeduction(till, gain);
       if (!merchantAfter) {
         throw new Error(`${merchant.name} has `
-          + `${formatPurse(totalCopper(merchant.system.currency))} and can't pay `
+          + `${formatPurse(totalCopper(till))} and can't pay `
           + `${formatCopper(gain)}.`);
       }
     }
 
+    const options = receipts.options();
     const name = item.name;
-    await grantItem(merchant, item, qty);
-    await decrementItem(item, qty);
+    const granted = await grantItem(merchant, item, qty, { options });
+    await decrementItem(item, qty, options);
+    const moves = [itemMove(seller, merchant, granted, qty, item)];
     if (gain > 0) {
-      await payee.update({ "system.currency": addCopper(payee.system.currency, gain) });
-      if (merchantAfter) await merchant.update({ "system.currency": merchantAfter });
+      const purse = coins(payee.system.currency);
+      const paid = addCopper(purse, gain);
+      await payee.update({ "system.currency": paid }, options);
+      moves.push(coinMove(payee, purseDelta(purse, paid)));
+      if (merchantAfter) {
+        await merchant.update({ "system.currency": merchantAfter }, options);
+        moves.push(coinMove(merchant, purseDelta(till, merchantAfter)));
+      }
     }
-    audit(`<strong>${seller.name}</strong> sold ${qty} × <em>${name}</em> to `
-      + `<strong>${merchant.name}</strong> for ${formatCopper(gain)}`
-      + (payee !== seller ? `, paid into <strong>${payee.name}</strong>'s purse.` : "."),
-      user, [seller, payee]);
-    return { name, quantity: qty, gain, payee: payee.name };
+    const receipt = await postLine(html`<strong>${seller.name}</strong> sold ${qty} × <em>${name}</em> to `
+      + html`<strong>${merchant.name}</strong> for ${formatCopper(gain)}`
+      + (payee !== seller ? html`, paid into <strong>${payee.name}</strong>'s purse.` : "."),
+      moves, user, [seller, payee]);
+    return { name, quantity: qty, gain, payee: payee.name, receipt };
   },
 
   /**
@@ -537,14 +660,18 @@ const OPS = {
       throw new Error(`Loot Shelf: ${to.name} has no such bag.`);
     const stock = Math.max(1, Math.floor(item.system.quantity ?? 1));
     const qty = Math.min(Math.max(1, Math.floor(quantity ?? stock)), stock);
+    const options = receipts.options();
     const name = item.name;
-    await grantItem(to, item, qty, { container: bag?.id ?? null });
-    await decrementItem(item, qty);
-    const emptied = await removeEmptiedContainer(container);
-    audit(`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
-      + `<strong>${container.name}</strong>.`
-      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user, [to]);
-    return { name, quantity: qty, emptied };
+    const granted = await grantItem(to, item, qty, { container: bag?.id ?? null, options });
+    await decrementItem(item, qty, options);
+    const removed = await removeEmptiedContainer(container, options);
+    const emptied = removed.length > 0;
+    const moves = [itemMove(container, to, granted, qty, item)];
+    if (emptied) moves.push({ kind: "tokens", actor: container.uuid, tokens: removed });
+    const receipt = await postLine(html`<strong>${to.name}</strong> took ${qty} × <em>${name}</em> from `
+      + html`<strong>${container.name}</strong>.`
+      + (emptied ? html` <em>${container.name} was picked clean and is gone.</em>` : ""), moves, user, [to]);
+    return { name, quantity: qty, emptied, receipt };
   },
 
   /**
@@ -572,16 +699,21 @@ const OPS = {
     if (amount <= 0) throw new Error(`Loot Shelf: ${container.name} has no coin.`);
 
     // Credit before emptying, so a failed update never destroys the coin (fail open).
-    const purse = coins(to.system?.currency);
+    const options = receipts.options();
+    const before = coins(to.system?.currency);
+    const purse = coins(before);
     for (const k of ASCENDING) purse[k] += taken[k];
-    await to.update({ "system.currency": purse });
-    await container.update({ "system.currency": coins(null) });
+    await to.update({ "system.currency": purse }, options);
+    await container.update({ "system.currency": coins(null) }, options);
+    const moves = [coinMove(to, purseDelta(before, purse)), coinMove(container, purseDelta(taken, coins(null)))];
 
-    const emptied = await removeEmptiedContainer(container);
-    audit(`<strong>${to.name}</strong> took ${formatCopper(amount)} from `
-      + `<strong>${container.name}</strong>.`
-      + (emptied ? ` <em>${container.name} was picked clean and is gone.</em>` : ""), user, [to]);
-    return { amount, emptied };
+    const removed = await removeEmptiedContainer(container, options);
+    const emptied = removed.length > 0;
+    if (emptied) moves.push({ kind: "tokens", actor: container.uuid, tokens: removed });
+    const receipt = await postLine(html`<strong>${to.name}</strong> took ${formatCopper(amount)} from `
+      + html`<strong>${container.name}</strong>.`
+      + (emptied ? html` <em>${container.name} was picked clean and is gone.</em>` : ""), moves, user, [to]);
+    return { amount, emptied, receipt };
   },
 
   async transferItem({ fromUuid: fromId, toUuid: toId, itemId, quantity, move = true }, user) {
@@ -610,12 +742,12 @@ async function handle(op, payload, user) {
 
 async function onSocket(msg) {
   if (msg?.t === "req") {
-    if (game.users.activeGM !== game.user) return; // GM-elect: exactly one client answers
+    if (!elect.isElect()) return; // the elect: exactly one client answers
     let res;
     try {
       res = { ok: true, data: await handle(msg.op, msg.payload, game.users.get(msg.userId)) };
     } catch (err) {
-      console.error(`${MODULE_ID} | ${msg.op} failed`, err);
+      log.error(`${msg.op} failed`, err);
       res = { ok: false, error: err.message };
     }
     game.socket.emit(SOCKET, { t: "res", id: msg.id, ...res });
@@ -630,13 +762,13 @@ async function onSocket(msg) {
 }
 
 /**
- * Run a kernel operation, locally when this client is the GM-elect, otherwise proxied
- * over the socket. Resolves with the op's result or rejects with a user-facing Error.
+ * Run a kernel operation, locally when this client is the elect, otherwise proxied over
+ * the socket (to the elect, which may be this same user's other window). Resolves with the
+ * op's result or rejects with a user-facing Error.
  */
 export async function gmRequest(op, payload) {
-  const gm = game.users.activeGM;
-  if (!gm) throw new Error("Loot Shelf: no GM is connected.");
-  if (gm === game.user) return handle(op, payload, game.user);
+  if (!game.users.activeGM) throw new Error("Loot Shelf: no GM is connected.");
+  if (elect.isElect()) return handle(op, payload, game.user);
   return new Promise((resolve, reject) => {
     const id = foundry.utils.randomID();
     const timer = setTimeout(() => {
@@ -669,7 +801,7 @@ export async function stockItems(actor, items = []) {
     if (typeof entry === "string") {
       const doc = await fromUuid(entry);
       if (doc instanceof Item) docs.push(doc.toObject());
-      else console.warn(`${MODULE_ID} | stockItems: "${entry}" is not an Item uuid — skipped.`);
+      else log.warn(`stockItems: "${entry}" is not an Item uuid — skipped.`);
     } else if (entry && typeof entry === "object") {
       docs.push(foundry.utils.deepClone(entry));
     }

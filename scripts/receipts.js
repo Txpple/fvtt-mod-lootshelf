@@ -1,11 +1,12 @@
 /**
  * Loot Shelf — the Receipt Settings block on the module's settings sheet.
  *
- * The policy itself lives with the audit line in transfer.js, which is the kernel and
- * imports nothing; this file is the UI half, and imports from there. The choice is rendered
- * as a labelled RADIO GROUP rather than the dropdown a `choices` setting gets by default:
- * two mutually exclusive policies with a paragraph of consequence each is exactly what
- * radios are for, and a `<select>` has nowhere to put the consequences.
+ * The policies are the family kit's (scripts/kit/receipt.js `MODES`, the same three in Party
+ * Stash), registered as the kernel's setting in transfer.js; this file is the UI half, and
+ * imports from there. The choice is rendered as a labelled RADIO GROUP rather than the
+ * dropdown a `choices` setting gets by default: mutually exclusive policies with a paragraph
+ * of consequence each are exactly what radios are for, and a `<select>` has nowhere to put
+ * the consequences.
  *
  * The registered `<select>` stays in the form as the real field, merely hidden. It is what
  * core reads on submit and what core's "Reset Defaults" writes to — that handler dispatches
@@ -17,6 +18,7 @@
  */
 
 import { MODULE_ID, RECEIPT_SETTING, RECEIPT_MODES } from "./transfer.js";
+import { log } from "./family.js";
 
 Hooks.on("renderSettingsConfig", (_app, element) => {
   try {
@@ -74,7 +76,7 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
       for (const input of radios.querySelectorAll("input")) input.checked = input.value === select.value;
     });
   } catch (err) {
-    console.error(`${MODULE_ID} | rendering the Receipt Settings block failed — the choice `
+    log.error(`rendering the Receipt Settings block failed — the choice `
       + "stays available as a dropdown", err);
   }
 });
