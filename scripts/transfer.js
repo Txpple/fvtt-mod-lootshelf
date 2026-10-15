@@ -201,7 +201,7 @@ async function copyContents(sourceContainer, target, containerId, options = {}) 
   for (const c of contents) {
     const data = cleanItemData(c);
     data.system.container = containerId;
-    const [created] = await target.createEmbeddedDocuments("Item", [data], options);
+    const [created] = await target.createEmbeddedDocuments("Item", [data], { ...options });
     if (c.type === "container") await copyContents(c, target, created.id, options);
   }
 }
@@ -217,18 +217,18 @@ export async function grantItem(target, item, quantity = 1, { container = null, 
   if (item.type === "container") {
     const data = cleanItemData(item, 1);
     if (container) data.system.container = container;
-    const [created] = await target.createEmbeddedDocuments("Item", [data], options);
+    const [created] = await target.createEmbeddedDocuments("Item", [data], { ...options });
     await copyContents(item, target, created.id, options);
     return created;
   }
   const stack = findStack(target, item, container);
   if (stack) {
-    await stack.update({ "system.quantity": Math.floor(stack.system.quantity ?? 0) + quantity }, options);
+    await stack.update({ "system.quantity": Math.floor(stack.system.quantity ?? 0) + quantity }, { ...options });
     return stack;
   }
   const data = cleanItemData(item, quantity);
   if (container) data.system.container = container;
-  const [created] = await target.createEmbeddedDocuments("Item", [data], options);
+  const [created] = await target.createEmbeddedDocuments("Item", [data], { ...options });
   return created;
 }
 
@@ -236,8 +236,8 @@ export async function grantItem(target, item, quantity = 1, { container = null, 
 export async function decrementItem(item, quantity = 1, options = {}) {
   if (item.type === "container") return item.delete({ ...options, deleteContents: true });
   const q = Math.floor(item.system.quantity ?? 1);
-  if (q - quantity > 0) return item.update({ "system.quantity": q - quantity }, options);
-  return item.delete(options);
+  if (q - quantity > 0) return item.update({ "system.quantity": q - quantity }, { ...options });
+  return item.delete({ ...options });
 }
 
 /* -------------------------------------------------- */
@@ -341,7 +341,7 @@ async function removeEmptiedContainer(container, options = {}) {
     const removed = [];
     for (const [scene, list] of byScene) {
       const data = list.map(t => t.toObject());
-      await scene.deleteEmbeddedDocuments("Token", list.map(t => t.id), options);
+      await scene.deleteEmbeddedDocuments("Token", list.map(t => t.id), { ...options });
       for (const d of data) removed.push({ scene: scene.uuid, data: d });
     }
     return removed;
@@ -490,7 +490,7 @@ async function revertLine(line, { options = {} } = {}) {
     }
     const gain = p => totalCopper(p.after) - totalCopper(p.actor.system?.currency);
     for (const p of purses.filter(x => gain(x) >= 0)) {
-      await p.actor.update({ "system.currency": p.after }, options);
+      await p.actor.update({ "system.currency": p.after }, { ...options });
       wrote = true;
     }
     for (const it of items) {
@@ -499,7 +499,7 @@ async function revertLine(line, { options = {} } = {}) {
       await decrementItem(it.goods, it.m.qty, options);
     }
     for (const p of purses.filter(x => gain(x) < 0)) {
-      await p.actor.update({ "system.currency": p.after }, options);
+      await p.actor.update({ "system.currency": p.after }, { ...options });
       wrote = true;
     }
   } catch (err) {
@@ -538,13 +538,13 @@ const OPS = {
 
     const options = receipts.options();
     const name = item.name;
-    if (cost > 0) await buyer.update({ "system.currency": paid }, options);
+    if (cost > 0) await buyer.update({ "system.currency": paid }, { ...options });
     let granted;
     try {
       granted = await grantItem(buyer, item, qty, { options });
     } catch (err) {
       if (cost > 0) {
-        await buyer.update({ "system.currency": before }, options)
+        await buyer.update({ "system.currency": before }, { ...options })
           .catch(refund => log.error(`the refund to ${buyer.name} after a failed purchase did not land`, refund));
       }
       throw err;
@@ -556,7 +556,7 @@ const OPS = {
       if (cost > 0) {
         const till = coins(merchant.system.currency);
         const after = addCopper(till, cost);
-        await merchant.update({ "system.currency": after }, options);
+        await merchant.update({ "system.currency": after }, { ...options });
         moves.push(coinMove(merchant, purseDelta(till, after)));
       }
     }
@@ -615,10 +615,10 @@ const OPS = {
     if (gain > 0) {
       const purse = coins(payee.system.currency);
       const paid = addCopper(purse, gain);
-      await payee.update({ "system.currency": paid }, options);
+      await payee.update({ "system.currency": paid }, { ...options });
       moves.push(coinMove(payee, purseDelta(purse, paid)));
       if (merchantAfter) {
-        await merchant.update({ "system.currency": merchantAfter }, options);
+        await merchant.update({ "system.currency": merchantAfter }, { ...options });
         moves.push(coinMove(merchant, purseDelta(till, merchantAfter)));
       }
     }
@@ -703,8 +703,8 @@ const OPS = {
     const before = coins(to.system?.currency);
     const purse = coins(before);
     for (const k of ASCENDING) purse[k] += taken[k];
-    await to.update({ "system.currency": purse }, options);
-    await container.update({ "system.currency": coins(null) }, options);
+    await to.update({ "system.currency": purse }, { ...options });
+    await container.update({ "system.currency": coins(null) }, { ...options });
     const moves = [coinMove(to, purseDelta(before, purse)), coinMove(container, purseDelta(taken, coins(null)))];
 
     const removed = await removeEmptiedContainer(container, options);
