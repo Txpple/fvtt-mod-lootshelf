@@ -57,7 +57,8 @@
       "getDocumentClass",
       "loadTemplates",
       "Handlebars",
-      "libWrapper"
+      "libWrapper",
+      "User"
     ]
   },
   "linter": {
