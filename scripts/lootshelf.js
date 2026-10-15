@@ -41,6 +41,7 @@
  *   await api.sell({ merchantUuid, sellerUuid, itemId, quantity, payeeUuid });
  *   await api.transferItem({ fromUuid, toUuid, itemId, quantity, move });
  *   await api.revertReceipt(messageOrId, line);  // GM only: what the Revert button does
+ *   api.isElect();                               // is this the client that acts?
  *   api.priceInCopper(item);     api.formatCopper(copper);
  */
 
@@ -52,6 +53,7 @@ import "./receipts.js";
 import { setContainer, createLootContainer, isContainer } from "./container.js";
 import { setMerchant, createMerchant, openShelf, isMerchant } from "./merchant.js";
 import { configure } from "./config.js";
+import { elect } from "./family.js";
 
 Hooks.once("init", () => {
   game.modules.get(MODULE_ID).api = {
@@ -64,6 +66,8 @@ Hooks.once("init", () => {
     purchase: payload => gmRequest("purchase", payload),
     sell: payload => gmRequest("sell", payload),
     transferItem: payload => gmRequest("transferItem", payload),
+    // the elect: is this client the one that acts (the active GM, in its leading window)?
+    isElect: () => elect.isElect(),
     // receipts: ask the elect to revert one line of a receipt (GM only), as the button does
     revertReceipt: (message, line = 0) =>
       receipts.requestRevert(typeof message === "string" ? game.messages.get(message) : message, line),
