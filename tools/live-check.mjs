@@ -75,6 +75,12 @@ const SCENARIO = async ({ probe, fx }) => {
   };
   const linesSince = (start, alias) => game.messages.contents
     .filter(m => !start.has(m.id) && m.speaker?.alias === alias && (m.content ?? "").includes(probe));
+  const drawn = id => {
+    const el = document.querySelector(`[data-message-id="${id}"]`);
+    const row = el?.querySelector("[data-receipt-line]");
+    return { rendered: !!el, button: !!el?.querySelector(".openroll5e-receipt-revert"),
+      struck: row?.style?.textDecoration === "line-through" };
+  };
   const out = {};
 
   // A. The purchase and its receipt.
@@ -94,6 +100,7 @@ const SCENARIO = async ({ probe, fx }) => {
     buyerGp: gp(buyer), buyerRope: qty(buyer), shopRope: qty(shop), shopGp: gp(shop),
     shopUuid: shop.uuid, buyerUuid: buyer.uuid
   };
+  out.a.drawnBefore = drawn(bought.receipt);
 
   // B. The revert, as the button asks it.
   start = new Set(game.messages.keys());
@@ -106,6 +113,7 @@ const SCENARIO = async ({ probe, fx }) => {
     newLines: game.messages.contents.filter(m => !start.has(m.id)).length,
     again: await api.revertReceipt(bought.receipt, 0)
   });
+  out.b.drawnAfter = drawn(bought.receipt);
 
   // C. A sale paid into the party: one Loot Shelf line, no Party Stash line; then its revert.
   const second = await api.purchase({ merchantUuid: shop.uuid, buyerUuid: buyer.uuid, itemId: rope(shop).id, quantity: 1 });
@@ -176,6 +184,10 @@ try {
   check(r.b.buyerGp === 10 && r.b.buyerRope === 0 && r.b.shopRope === 5 && r.b.shopGp === 0, `as before the sale (buyer ${r.b.buyerGp} gp, ${r.b.buyerRope} rope; shop ${r.b.shopRope} rope, ${r.b.shopGp} gp)`);
   check(r.b.newLines === 0, `the revert posted no line of its own (got ${r.b.newLines})`);
   check(r.b.again === false, "a reverted line cannot be asked again");
+  if (r.a.drawnBefore.rendered) {
+    check(r.a.drawnBefore.button, "the card the chat log drew carries the Revert button");
+    check(r.b.drawnAfter.struck && !r.b.drawnAfter.button, "once reverted the line is struck through and the button gone");
+  } else console.log("  note  the chat log did not draw the card here; the button was not looked at");
 
   console.log("# C — a sale into the party: one line, and its revert");
   check(r.c.lootLines === 1, `one Loot Shelf line (got ${r.c.lootLines})`);
