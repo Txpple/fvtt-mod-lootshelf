@@ -209,7 +209,7 @@ export async function decrementItem(item, quantity = 1) {
 // client (preCreate hooks fire initiator-side only), so whatever is taken OUT later via
 // the native drag pipeline is already clean without a transformer layer in the middle.
 // Tidiness only on a merchant: the shelf does not read `equipped` (see #onShelf).
-Hooks.on("preCreateItem", (item, data, options, userId) => {
+Hooks.on("preCreateItem", (item, _data, _options, _userId) => {
   try {
     const actor = item.parent;
     if (!(actor instanceof Actor)) return;

@@ -157,7 +157,7 @@ Hooks.once("init", () => {
         label: dest === looter ? (solo ? "Take" : `Take for ${looter.name}`) : `Add to ${dest.name}`,
         icon: dest === looter ? "fa-solid fa-hand-holding" : "fa-solid fa-users",
         default: i === 0,
-        callback: (event, button) => ({ destUuid: dest.uuid, qty: quantityOf?.(button) ?? 1 })
+        callback: (_event, button) => ({ destUuid: dest.uuid, qty: quantityOf?.(button) ?? 1 })
       }));
       buttons.push({ action: "cancel", label: "Cancel" });
       return buttons;
@@ -186,7 +186,7 @@ Hooks.once("init", () => {
 
     /** @override */
     async _configureInventorySections(sections) {
-      sections.forEach(s => s.minWidth = 200);
+      for (const s of sections) s.minWidth = 200;
       const value = {
         id: "lootValue", width: 90, order: 300, priority: 200, label: "Value",
         template: `modules/${MODULE_ID}/templates/columns/loot-value.hbs`
@@ -211,7 +211,7 @@ Hooks.once("init", () => {
       const columns = game.user.isGM
         ? [value, "weight", "quantity", "controls"]
         : [value, "weight", qty, take];
-      sections.forEach(s => s.columns = columns);
+      for (const s of sections) s.columns = columns;
     }
 
     /** @inheritDoc */
@@ -354,7 +354,10 @@ Hooks.once("init", () => {
       // EVENT: refusing there means the click does nothing at all, with no way for the
       // player to learn why. Gating the render costs one notification and covers every
       // entry point — token, macro, API — instead of only the click.
-      if (!this.rendered && !canReachActor(this.actor)) return warnOutOfReach(this.actor), this;
+      if (!this.rendered && !canReachActor(this.actor)) {
+        warnOutOfReach(this.actor);
+        return this;
+      }
       try {
         return await super.render(options, _options);
       } catch (err) {
@@ -383,7 +386,7 @@ Hooks.once("init", () => {
      * Routed through the kernel's `takeFromContainer` exactly like the drag, so an unowned
      * chest is re-validated GM-side rather than trusted here.
      */
-    static async #onTake(event, target) {
+    static async #onTake(_event, target) {
       const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
       if (!item) return;
       const looter = this.looter;
@@ -423,11 +426,11 @@ Hooks.once("init", () => {
       } catch (err) {
         ui.notifications.warn(err.message);
       }
-      this.render();
+      void this.render();
     }
 
     /** Empty the chest's purse into the looter's. Confirmed, because it is all-or-nothing. */
-    static async #onTakeCurrency(event, target) {
+    static async #onTakeCurrency(_event, _target) {
       const looter = this.looter;
       if (!looter) {
         return void ui.notifications.warn("Loot Shelf: assign a character to your user "
@@ -459,7 +462,7 @@ Hooks.once("init", () => {
       } catch (err) {
         ui.notifications.warn(err.message);
       }
-      this.render();
+      void this.render();
     }
   }
 

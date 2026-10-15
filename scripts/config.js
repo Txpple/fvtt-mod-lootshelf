@@ -85,7 +85,7 @@ export async function configure(actor) {
     content,
     // Each role's settings only exist for that role, so show one block or the other —
     // and neither when Loot Shelf is switched off for this actor.
-    render: (event, dialog) => {
+    render: (_event, dialog) => {
       const form = dialog.element.querySelector("form") ?? dialog.element;
       const sync = () => {
         const on = !!form.elements.lsEnabled?.checked;
@@ -100,7 +100,7 @@ export async function configure(actor) {
     buttons: [
       {
         action: "save", label: "Save", icon: "fa-solid fa-check", default: true,
-        callback: (event, button) => {
+        callback: (_event, button) => {
           const FDE = foundry.applications.ux?.FormDataExtended ?? globalThis.FormDataExtended;
           return new FDE(button.form).object;
         }

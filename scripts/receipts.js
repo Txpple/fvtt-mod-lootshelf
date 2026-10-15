@@ -18,7 +18,7 @@
 
 import { MODULE_ID, RECEIPT_SETTING, RECEIPT_MODES } from "./transfer.js";
 
-Hooks.on("renderSettingsConfig", (app, element) => {
+Hooks.on("renderSettingsConfig", (_app, element) => {
   try {
     const el = element instanceof HTMLElement ? element : element?.[0];
     const select = el?.querySelector(`select[name="${MODULE_ID}.${RECEIPT_SETTING}"]`);

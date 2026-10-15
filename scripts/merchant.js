@@ -185,7 +185,7 @@ Hooks.once("setup", () => {
   };
 });
 
-Hooks.on("dnd5e.dropItemSheetData", (bag, sheet, data) => {
+Hooks.on("dnd5e.dropItemSheetData", (bag, _sheet, data) => {
   try {
     if (bag?.type !== "container" || data?.type !== "Item" || !data.uuid) return;
     if (!isShopGood(fromUuidSync(data.uuid), bag.actor)) return;
@@ -252,7 +252,7 @@ function addContextOptions(options) {
       condition: () => game.user.isGM,
       callback: li => {
         const actor = getActor(li);
-        if (actor) configure(actor);
+        if (actor) void configure(actor);
       }
     },
     {
@@ -266,5 +266,5 @@ function addContextOptions(options) {
     }
   );
 }
-Hooks.on("getActorDirectoryEntryContext", (html, options) => addContextOptions(options));
-Hooks.on("getActorContextOptions", (app, options) => addContextOptions(options));
+Hooks.on("getActorDirectoryEntryContext", (_html, options) => addContextOptions(options));
+Hooks.on("getActorContextOptions", (_app, options) => addContextOptions(options));

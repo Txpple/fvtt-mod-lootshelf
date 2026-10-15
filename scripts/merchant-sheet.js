@@ -154,7 +154,7 @@ Hooks.once("init", () => {
 
     /** @override */
     async _configureInventorySections(sections) {
-      sections.forEach(s => s.minWidth = 200);
+      for (const s of sections) s.minWidth = 200;
       const shelfPrice = {
         id: "shelfPrice", width: 90, order: 300, priority: 200, label: "DND5E.Price",
         template: `modules/${MODULE_ID}/templates/columns/shelf-price.hbs`
@@ -176,7 +176,7 @@ Hooks.once("init", () => {
       const columns = game.user.isGM
         ? [shelfPrice, "quantity", hide, "controls"]
         : [shelfPrice, stock, buy];
-      sections.forEach(s => s.columns = columns);
+      for (const s of sections) s.columns = columns;
     }
 
     /** @inheritDoc */
@@ -267,7 +267,7 @@ Hooks.once("init", () => {
      * do not own, so a sale drop was rejected before _onDropItem ever saw it. Allow the
      * drop and judge it ourselves — the sale runs GM-side through the transfer kernel.
      */
-    _canDragDrop(selector) {
+    _canDragDrop(_selector) {
       return true;
     }
 
@@ -275,7 +275,10 @@ Hooks.once("init", () => {
     async render(options, _options) {
       // You have to walk up to the counter. See the note in container-sheet.js for why
       // this is a render gate rather than a Token#_canView gate.
-      if (!this.rendered && !canReachActor(this.actor)) return warnOutOfReach(this.actor), this;
+      if (!this.rendered && !canReachActor(this.actor)) {
+        warnOutOfReach(this.actor);
+        return this;
+      }
       try {
         return await super.render(options, _options);
       } catch (err) {
@@ -297,7 +300,7 @@ Hooks.once("init", () => {
     /*  Buying, selling, curating                     */
     /* ---------------------------------------------- */
 
-    static async #onBuy(event, target) {
+    static async #onBuy(_event, target) {
       const row = target.closest("[data-item-id]");
       const item = this.actor.items.get(row?.dataset.itemId);
       if (!item) return;
@@ -324,7 +327,7 @@ Hooks.once("init", () => {
         buttons: [
           {
             action: "buy", label: "Buy", icon: "fa-solid fa-coins", default: true,
-            callback: (ev, button) =>
+            callback: (_ev, button) =>
               Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || 1)))
           },
           { action: "cancel", label: "Cancel" }
@@ -343,10 +346,10 @@ Hooks.once("init", () => {
       } catch (err) {
         ui.notifications.warn(err.message);
       }
-      this.render();
+      void this.render();
     }
 
-    static async #onToggleHidden(event, target) {
+    static async #onToggleHidden(_event, target) {
       if (!game.user.isGM) return;
       const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
       if (item) await item.setFlag(MODULE_ID, "hidden", !item.getFlag(MODULE_ID, "hidden"));
@@ -402,7 +405,7 @@ Hooks.once("init", () => {
         label: payee === seller ? (solo ? "Sell" : `Pay ${seller.name}`) : `Pay ${payee.name}`,
         icon: payee === seller ? "fa-solid fa-coins" : "fa-solid fa-users",
         default: i === 0,
-        callback: (ev, button) => ({
+        callback: (_ev, button) => ({
           payeeUuid: payee.uuid,
           qty: Math.max(1, Math.min(max, Math.floor(button.form?.elements?.qty?.valueAsNumber || 1)))
         })
@@ -431,7 +434,7 @@ Hooks.once("init", () => {
       } catch (err) {
         ui.notifications.warn(err.message);
       }
-      this.render();
+      void this.render();
     }
   }
 

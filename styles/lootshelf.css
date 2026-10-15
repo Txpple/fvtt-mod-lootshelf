@@ -7,7 +7,7 @@
    no restyling of the item table, which is the system's to own. */
 
 /* No party members, so collapse the two-column grid (196px rail + contents). */
-.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part=inventory] {
+.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part="inventory"] {
   grid-template-columns: auto;
 }
 
@@ -26,7 +26,7 @@
    the scrollbar. `min-height: 0` is what actually lets the list shrink inside the flex
    column instead of pushing the container taller. The part's `scrollable` selector in
    container-sheet.js points at this same list so scroll position survives re-renders. */
-.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part=inventory] .body {
+.dnd5e2.sheet.actor.group.lootshelf-sheet [data-application-part="inventory"] .body {
   overflow: hidden;
   padding-bottom: 0;
   display: flex;
@@ -250,6 +250,7 @@
    sheet; in a ~380px dialog a label like "Quantity (up to 3)" wrapped across three lines
    beside its input. Give the label its own full-width row and let the field sit under it,
    which reads correctly at any dialog width instead of depending on the label being short. */
+/* biome-ignore lint/style/noDescendingSpecificity: the sheets' .window-content rule above never matches a dialog */
 .application.dialog.lootshelf-dialog .window-content {
   min-width: 320px;
 }

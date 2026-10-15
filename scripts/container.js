@@ -74,7 +74,7 @@ function warnThrottled(key, message) {
  * the user owns both actors; "block" when a container is involved but only one side is
  * owned (a copy would duplicate loot); null when out of scope.
  */
-function containerVerdict(sheet, event, data) {
+function containerVerdict(sheet, _event, data) {
   if (data?.type !== "Item" || !data.uuid) return null;
   const item = fromUuidSync(data.uuid);
   const source = item?.parent;
@@ -259,7 +259,7 @@ function installContainerBagFix(Base) {
  * through the kernel, for everyone. Always a move — taking loot is the only thing that drag
  * can mean.
  */
-Hooks.on("dnd5e.dropItemSheetData", (bag, sheet, data) => {
+Hooks.on("dnd5e.dropItemSheetData", (bag, _sheet, data) => {
   try {
     if (bag?.type !== "container" || !(bag.actor instanceof Actor)) return;
     if (data?.type !== "Item" || !data.uuid) return;
