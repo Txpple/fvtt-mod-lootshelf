@@ -154,6 +154,7 @@ tools/
   verify-lootshelf.mjs         the live suite: chests, shops, takes, buys and sales
   verify-loot-drops.mjs        the live suite for canvas drops
   verify-receipt-settings.mjs  the live suite for the receipt setting shared with Party Stash
+  live-check.mjs               the live check of a receipt and its revert
 design.md                      what was decided while building
 ```
 
