@@ -103,14 +103,16 @@ the real path.
 
 1. A fix commit, then a `release: vX.Y.Z` commit that touches only `module.json`. Bump
    `version` **and** the `download` URL's tag together.
-2. **Zip trap.** Do not build the zip with PowerShell's `Compress-Archive`: on Windows
-   PowerShell 5.1 it writes backslash entry names (`scripts\transfer.js`), Foundry's
-   Linux-side extractor treats that as a literal filename, and the module fails to load.
-   Build with `[IO.Compression.ZipFile]::Open` + `CreateEntryFromFile` using forward-slash
-   entry names, and assert there are zero backslash entries before uploading.
-3. The GitHub release needs **two** assets: `fvtt-mod-lootshelf.zip` and a bare
-   `module.json` (the latter makes `releases/latest/download/module.json` resolve). Verify
-   both URLs return 200.
+2. Push an annotated tag `vX.Y.Z` on `main`: its subject is the release title, its body the
+   notes. `.github/workflows/release.yml` hands it to the family's reusable workflow (the
+   suite's `release-module.yml`), which checks the tag, runs `npm run verify`, builds the zip
+   with the suite's `tools/build-module-zip.mjs` (forward-slash entries, fixed timestamps,
+   read back entry by entry) and publishes **two** assets: `fvtt-mod-lootshelf.zip` and a bare
+   `module.json` (the latter makes `releases/latest/download/module.json` resolve). Never
+   build the zip by hand: PowerShell's `Compress-Archive` writes backslash entry names, which
+   Foundry's Linux-side extractor treats as literal filenames, and the module fails to load.
+3. Run the release workflow by hand first for a dry run (the zip kept as an artifact,
+   nothing published). After the tag, verify both URLs return 200.
 4. **Prod only with the owner's word.** From `../fvtt-mcp-dnd5e`:
    `FOUNDRY_HOST=molten node scripts/deploy-house-module.mjs fvtt-mod-lootshelf --check`,
    then again without `--check`. It hot-deploys over WebDAV with byte read-back and
