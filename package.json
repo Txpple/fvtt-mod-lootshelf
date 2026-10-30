@@ -4,9 +4,10 @@
   "type": "module",
   "description": "Development tooling for Loot Shelf. NOTHING HERE SHIPS: the module is plain ES modules loaded straight from scripts/, with no build step. This file declares the gate (Biome and the unit tests) and what tools/ imports.",
   "scripts": {
-    "verify": "npm run check && npm run test",
+    "verify": "npm run check && npm run gmsites && npm run test",
     "check": "biome check --error-on-warnings .",
     "check:fix": "biome check --write .",
+    "gmsites": "node tools/check-gm-sites.mjs",
     "test": "vitest run"
   },
   "devDependencies": {

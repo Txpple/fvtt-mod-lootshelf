@@ -32,6 +32,7 @@
 
 import { MODULE_ID, stockItems, gmRequest } from "./transfer.js";
 import { CONTAINER_SHEET_ID, sheetClassUpdate, sheetUnset } from "./sheets.js";
+import { containerLook } from "./dropped-look.js";
 import { elect, log } from "./family.js";
 
 /* -------------------------------------------------- */
@@ -327,22 +328,25 @@ export async function setContainer(actor, { enabled = true, ephemeral } = {}) {
  * world) and/or plain item data. Ownership stays at the world default unless
  * `defaultOwnership` (a CONST.DOCUMENT_OWNERSHIP_LEVELS value) is passed. `ephemeral`
  * marks the chest to disappear from the map once players empty it — what the canvas-drop
- * gesture uses, and off by default so a deliberately placed chest stays put.
+ * gesture uses, and off by default so a deliberately placed chest stays put — and draws it as
+ * loot on the ground: small and centred, one item's own art or a sack for a pile.
  */
 export async function createLootContainer({
   name = "Loot Chest", img, items = [], folder = null, defaultOwnership, ephemeral = false
 } = {}) {
-  const art = img ?? "icons/svg/item-bag.svg";
+  // Loot on the ground is drawn small, its own art for one item, a sack for a pile
+  // (dropped-look.js); the actor keeps the art it was given for its sheet.
+  const look = containerLook({ img, itemCount: items.length, ephemeral });
   const data = {
     name,
     type: "npc",
-    img: art,
+    img: img ?? look.src,
     folder,
     prototypeToken: {
       name,
       actorLink: true,
       disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
-      texture: { src: art },
+      texture: { src: look.src, scaleX: look.scale, scaleY: look.scale },
       // The token was always NAMED after the item; what it lacked was a visible nameplate,
       // since Foundry defaults displayName to NONE. A pile of loot that cannot be
       // identified without opening it is a guessing game — especially once several are on

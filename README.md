@@ -51,8 +51,11 @@ and armor there.
 
 A GM can also drag an item from a compendium or the Items sidebar onto the scene to leave it lying
 there: a container named and illustrated after the item, holding a copy of it, filed in a "Loot
-Shelf" folder and set to disappear when emptied. Items dragged off a character's sheet are left
-alone, since copying one there would duplicate it.
+Shelf" folder and set to disappear when emptied. Loot left on the ground is drawn small and
+centred in its square, so it reads as an object on the floor: one item shows its own art, a pile of
+several (a companion's gear, from By the Books) or an item with no art shows a sack. A chest you
+place yourself keeps full size. Items dragged off a character's sheet are left alone, since copying
+one there would duplicate it.
 
 On a chest, the line under its name shows how many items it holds and what they are worth. A GM
 can type a note over it, and players see the note instead.
@@ -147,10 +150,12 @@ scripts/
                                receipts and the revert
   receipts.js                  the Receipts setting's radio group
   canvas-drop.js               an item dropped on the map becomes a chest
+  dropped-look.js              how a chest looks on the map: loot on the ground small
   config.js                    the Loot Shelf: Configure dialog
 styles/  templates/            the sheets, the buttons and the dialogs
-tests/                         the unit tests (Vitest): the kit, the coin arithmetic
+tests/                         the unit tests (Vitest): the kit, the coin arithmetic, the look
 tools/
+  check-gm-sites.mjs           every isGM read tagged for two GM clients (part of verify)
   verify-lootshelf.mjs         the live suite: chests, shops, takes, buys and sales
   verify-loot-drops.mjs        the live suite for canvas drops
   verify-receipt-settings.mjs  the live suite for the receipt setting shared with Party Stash
